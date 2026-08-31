@@ -2924,6 +2924,10 @@ textarea:focus-visible,
 .health-alert-panel,
 .intelligence-focus {
   background-color: rgba(5, 16, 32, 0.60);
+  box-shadow:
+    0 0 12px rgba(34, 211, 238, 0.06),
+    0 6px 20px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035);
 }
 
 .figma-nav-rail {
