@@ -16,8 +16,8 @@ export default function TopBar() {
           className="figma-brand-logo"
           src="/cosmo-care-logo.png"
           alt="CosmoCare logo"
-          width={56}
-          height={56}
+          width={68}
+          height={68}
           priority
         />
         <div>
