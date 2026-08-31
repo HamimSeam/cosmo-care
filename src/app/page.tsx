@@ -1,8 +1,10 @@
 'use client';
 
+import { useState, useEffect, useCallback } from 'react';
 import { AppProvider, useApp } from '@/context/AppContext';
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
+import StartScreen from '@/components/StartScreen';
 import DemoControls from '@/components/DemoControls';
 import MissionOverview from '@/components/views/MissionOverview';
 import CrewHealth from '@/components/views/CrewHealth';
@@ -53,9 +55,35 @@ function AppShell() {
 }
 
 export default function Page() {
+  const [phase, setPhase] = useState<'start' | 'leaving' | 'ready'>('start');
+
+  const handleStart = useCallback(() => {
+    if (phase !== 'start') return;
+    setPhase('leaving');
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== 'leaving') return;
+    const timer = window.setTimeout(() => setPhase('ready'), 820);
+    return () => window.clearTimeout(timer);
+  }, [phase]);
+
+  const showMain = phase === 'leaving' || phase === 'ready';
+  const showStart = phase === 'start' || phase === 'leaving';
+
   return (
     <AppProvider>
-      <AppShell />
+      <div className="app-bootstrap">
+        {showMain && (
+          <div className={`app-enter-layer${phase === 'leaving' ? ' app-enter-layer--active' : ''}${phase === 'ready' ? ' app-enter-layer--settled' : ''}`}>
+            <AppShell />
+          </div>
+        )}
+        {showStart && (
+          <StartScreen onStart={handleStart} exiting={phase === 'leaving'} />
+        )}
+        {phase === 'leaving' && <div className="app-transition-scan" aria-hidden />}
+      </div>
     </AppProvider>
   );
 }

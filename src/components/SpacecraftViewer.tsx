@@ -229,10 +229,10 @@ function computeSceneCamera(box: THREE.Box3, frameOffset: THREE.Vector3): SceneC
 
 // ─── Crew marker positions (locked final ship coordinates) ────────────────────
 export const CREW_POSITIONS: Record<string, [number, number, number]> = {
-  'maya-chen':   [ 1.921,  0.921,  1.464],
-  'alex-rivera': [-1.890,  0.262, -0.254],
-  'sam-patel':   [ 0.974,  0.597, -1.864],
-  'jordan-lee':  [-0.060,  0.657, -4.887],
+  'maya-chen':   [-1.291,  0.286, -4.548],
+  'alex-rivera': [-2.560,  0.212, -0.253],
+  'sam-patel':   [-0.064,  0.448,  1.922],
+  'jordan-lee':  [-1.000,  0.476, -2.416],
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -241,6 +241,12 @@ const STATUS_COLORS: Record<string, string> = {
   ORANGE: '#fb923c',
   RED:    '#f87171',
 };
+
+// Marker visual scale — increase for easier selection and placement.
+const MARKER_CORE_RADIUS = 0.055;
+const MARKER_HIT_RADIUS = 0.2;
+const MARKER_RING_INNER = 0.062;
+const MARKER_RING_OUTER = 0.082;
 
 // ─── Holographic crew marker ──────────────────────────────────────────────────
 
@@ -275,7 +281,6 @@ function CrewMarker({
 
   return (
     <group ref={groupRef} position={position}>
-      {/* Core dot */}
       <mesh
         ref={meshRef}
         renderOrder={100}
@@ -290,11 +295,10 @@ function CrewMarker({
           document.body.style.cursor = 'default';
         }}
       >
-        <sphereGeometry args={[0.028, 16, 16]} />
+        <sphereGeometry args={[MARKER_CORE_RADIUS, 16, 16]} />
         <meshBasicMaterial color={color} transparent opacity={0.88} depthTest={false} depthWrite={false} />
       </mesh>
 
-      {/* Invisible hit target keeps the compact marker easy to select through the hull. */}
       <mesh
         renderOrder={101}
         onClick={(e) => { e.stopPropagation(); onSelect(); }}
@@ -308,13 +312,12 @@ function CrewMarker({
           document.body.style.cursor = 'default';
         }}
       >
-        <sphereGeometry args={[0.095, 16, 16]} />
+        <sphereGeometry args={[MARKER_HIT_RADIUS, 16, 16]} />
         <meshBasicMaterial transparent opacity={0} depthTest={false} depthWrite={false} />
       </mesh>
 
-      {/* Pulse ring */}
       <mesh ref={ringRef} rotation={[Math.PI / 2, 0, 0]} renderOrder={102}>
-        <ringGeometry args={[0.032, 0.042, 28]} />
+        <ringGeometry args={[MARKER_RING_INNER, MARKER_RING_OUTER, 28]} />
         <meshBasicMaterial color={color} transparent opacity={isSelected ? 0.82 : 0.55} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
       </mesh>
     </group>
@@ -327,20 +330,15 @@ function ShipWithMarkers({
   astronauts,
   selectedId,
   onSelectAstronaut,
-  cameraTarget,
   onSceneReady,
 }: {
   astronauts: Astronaut[];
   selectedId: string;
   onSelectAstronaut: (id: string) => void;
-  cameraTarget: [number, number, number] | null;
   onSceneReady: (camera: SceneCameraConfig) => void;
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const { scene } = useGLTF('/ship.glb');
-  const { camera } = useThree();
-  const targetCamPos = useRef<THREE.Vector3 | null>(null);
-  const animating = useRef(false);
   const clonedScene = useMemo(() => scene.clone(true), [scene]);
 
   useEffect(() => {
@@ -359,23 +357,6 @@ function ShipWithMarkers({
 
     enhanceShipMaterials(clonedScene);
   }, [clonedScene, onSceneReady]);
-
-  useEffect(() => {
-    if (!cameraTarget) return;
-    const dest = new THREE.Vector3(...cameraTarget);
-    const camDest = dest.clone().add(new THREE.Vector3(0.2, 0.15, 0.35));
-    targetCamPos.current = camDest;
-    animating.current = true;
-  }, [cameraTarget]);
-
-  useFrame(() => {
-    if (!animating.current || !targetCamPos.current) return;
-    camera.position.lerp(targetCamPos.current, 0.06);
-    if (camera.position.distanceTo(targetCamPos.current) < 0.005) {
-      animating.current = false;
-      camera.position.copy(targetCamPos.current);
-    }
-  });
 
   return (
     <group ref={groupRef}>
@@ -401,23 +382,81 @@ interface SpacecraftViewerProps {
   onSelectAstronaut: (id: string) => void;
 }
 
+const FOCUS_BLEND_NEAR = 0.38;
+const FOCUS_BLEND_FAR = 0.92;
+const FOCUS_SAME_SIDE_DOT = 0.25;
+const FOCUS_DISTANCE_SCALE = 0.42;
+const CAMERA_LERP = 0.08;
+const CAMERA_SNAP_EPS = 0.02;
+
+function computeFocusGoals(
+  marker: THREE.Vector3,
+  shipCenter: THREE.Vector3,
+  camera: THREE.Camera,
+  sceneCamera: SceneCameraConfig,
+) {
+  const focusDist = Math.max(
+    sceneCamera.minDistance * 0.35,
+    camera.position.distanceTo(marker) * FOCUS_DISTANCE_SCALE,
+  );
+
+  const toMarkerFromShip = new THREE.Vector3().subVectors(marker, shipCenter);
+  if (toMarkerFromShip.lengthSq() < 0.0001) toMarkerFromShip.copy(CAMERA_VIEW_DIR);
+  toMarkerFromShip.normalize();
+
+  const toCameraFromShip = new THREE.Vector3().subVectors(camera.position, shipCenter);
+  if (toCameraFromShip.lengthSq() < 0.0001) toCameraFromShip.copy(CAMERA_VIEW_DIR).multiplyScalar(-1);
+  toCameraFromShip.normalize();
+
+  const sameSide = toMarkerFromShip.dot(toCameraFromShip) > FOCUS_SAME_SIDE_DOT;
+  const blend = sameSide ? FOCUS_BLEND_NEAR : FOCUS_BLEND_FAR;
+
+  const idealDir = toMarkerFromShip.clone();
+  idealDir.y = Math.max(idealDir.y, 0.15);
+  idealDir.normalize();
+
+  const currentDir = new THREE.Vector3().subVectors(camera.position, marker);
+  if (currentDir.lengthSq() < 0.0001) currentDir.copy(idealDir);
+  else currentDir.normalize();
+
+  let blendedDir: THREE.Vector3;
+  if (!sameSide) {
+    const qFrom = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), currentDir);
+    const qTo = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), idealDir);
+    blendedDir = new THREE.Vector3(0, 0, 1).applyQuaternion(qFrom.clone().slerp(qTo, blend));
+  } else {
+    blendedDir = currentDir.clone().lerp(idealDir, blend).normalize();
+  }
+
+  return {
+    cameraPos: marker.clone().add(blendedDir.multiplyScalar(focusDist)),
+    target: marker.clone(),
+  };
+}
+
 function SceneCameraRig({
   controlsRef,
-  activeTarget,
+  focusMarkerId,
+  focusPosition,
+  focusNonce,
   sceneCamera,
 }: {
   controlsRef: React.RefObject<React.ComponentRef<typeof OrbitControls> | null>;
-  activeTarget: [number, number, number] | null;
+  focusMarkerId: string | null;
+  focusPosition: [number, number, number] | null;
+  focusNonce: number;
   sceneCamera: SceneCameraConfig;
 }) {
   const { camera } = useThree();
-  const focusTarget = useRef(new THREE.Vector3(...sceneCamera.target));
+  const animMode = useRef<'idle' | 'focus' | 'reset'>('idle');
+  const hadFocus = useRef(false);
+  const goalCam = useRef(new THREE.Vector3());
+  const goalTarget = useRef(new THREE.Vector3());
 
   useEffect(() => {
     const target = new THREE.Vector3(...sceneCamera.target);
     camera.position.set(...sceneCamera.pos);
     camera.lookAt(target);
-    focusTarget.current.copy(target);
 
     const controls = controlsRef.current;
     if (controls) {
@@ -426,42 +465,85 @@ function SceneCameraRig({
       controls.maxDistance = sceneCamera.maxDistance;
       controls.update();
     }
+
+    animMode.current = 'idle';
+    hadFocus.current = false;
   }, [camera, controlsRef, sceneCamera]);
 
   useEffect(() => {
-    if (!activeTarget) return;
-    focusTarget.current.set(...activeTarget);
-  }, [activeTarget]);
+    if (focusMarkerId && focusPosition) {
+      const marker = new THREE.Vector3(...focusPosition);
+      const shipCenter = new THREE.Vector3(...sceneCamera.target);
+      const goals = computeFocusGoals(marker, shipCenter, camera, sceneCamera);
+
+      goalCam.current.copy(goals.cameraPos);
+      goalTarget.current.copy(goals.target);
+      animMode.current = 'focus';
+      hadFocus.current = true;
+      return;
+    }
+
+    if (!hadFocus.current) return;
+
+    goalCam.current.set(...sceneCamera.pos);
+    goalTarget.current.set(...sceneCamera.target);
+    animMode.current = 'reset';
+    hadFocus.current = false;
+  }, [focusMarkerId, focusPosition, focusNonce, camera, sceneCamera, controlsRef]);
 
   useFrame(() => {
-    if (!activeTarget) return;
+    if (animMode.current === 'idle') return;
     const controls = controlsRef.current;
     if (!controls) return;
 
-    controls.target.lerp(focusTarget.current, 0.06);
+    camera.position.lerp(goalCam.current, CAMERA_LERP);
+    controls.target.lerp(goalTarget.current, CAMERA_LERP);
     controls.update();
+
+    const camDone = camera.position.distanceTo(goalCam.current) < CAMERA_SNAP_EPS;
+    const targetDone = controls.target.distanceTo(goalTarget.current) < CAMERA_SNAP_EPS;
+    if (camDone && targetDone) {
+      camera.position.copy(goalCam.current);
+      controls.target.copy(goalTarget.current);
+      controls.update();
+      animMode.current = 'idle';
+    }
   });
 
   return null;
 }
 
 export default function SpacecraftViewer({ astronauts, selectedId, onSelectAstronaut }: SpacecraftViewerProps) {
-  const [cameraTarget, setCameraTarget] = useState<[number, number, number] | null>(null);
+  const [focusMarkerId, setFocusMarkerId] = useState<string | null>(null);
+  const [focusNonce, setFocusNonce] = useState(0);
   const [sceneCamera, setSceneCamera] = useState<SceneCameraConfig>(FALLBACK_CAMERA);
   const [isShipLoaded, setIsShipLoaded] = useState(false);
-  const orbitEnabled = true;
   const controlsRef = useRef<React.ComponentRef<typeof OrbitControls> | null>(null);
+  const prevSelectedIdRef = useRef(selectedId);
+
+  const focusPosition = focusMarkerId ? (CREW_POSITIONS[focusMarkerId] ?? null) : null;
+
+  const requestFocus = useCallback((id: string | null) => {
+    setFocusMarkerId(id);
+    if (id) setFocusNonce(n => n + 1);
+  }, []);
+
+  useEffect(() => {
+    if (selectedId === prevSelectedIdRef.current) return;
+    prevSelectedIdRef.current = selectedId;
+    requestFocus(selectedId || null);
+  }, [selectedId, requestFocus]);
 
   const handleSceneReady = useCallback((camera: SceneCameraConfig) => {
     setSceneCamera(camera);
-    setCameraTarget(null);
+    setFocusMarkerId(null);
     setIsShipLoaded(true);
   }, []);
 
   const handleSelect = useCallback((id: string) => {
     onSelectAstronaut(id);
-    setCameraTarget(CREW_POSITIONS[id] ?? null);
-  }, [onSelectAstronaut]);
+    requestFocus(id || null);
+  }, [onSelectAstronaut, requestFocus]);
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', background: 'transparent' }}>
@@ -483,7 +565,6 @@ export default function SpacecraftViewer({ astronauts, selectedId, onSelectAstro
 
         <OrbitControls
           ref={controlsRef}
-          enabled={orbitEnabled}
           target={sceneCamera.target}
           enablePan
           screenSpacePanning
@@ -506,12 +587,17 @@ export default function SpacecraftViewer({ astronauts, selectedId, onSelectAstro
             astronauts={astronauts}
             selectedId={selectedId}
             onSelectAstronaut={handleSelect}
-            cameraTarget={cameraTarget}
             onSceneReady={handleSceneReady}
           />
         </Suspense>
 
-        <SceneCameraRig controlsRef={controlsRef} activeTarget={cameraTarget} sceneCamera={sceneCamera} />
+        <SceneCameraRig
+          controlsRef={controlsRef}
+          focusMarkerId={focusMarkerId}
+          focusPosition={focusPosition}
+          focusNonce={focusNonce}
+          sceneCamera={sceneCamera}
+        />
       </Canvas>
 
       {!isShipLoaded && (
