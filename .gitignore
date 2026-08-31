@@ -3,3 +3,6 @@
 ml/docs
 .vscode
 .env
+node_modules/
+.next
+backend/docs
