@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import type { ScenarioType } from '@/types';
 
@@ -36,25 +37,38 @@ const SCENARIOS: { id: ScenarioType; label: string; desc: string; astronautId: s
 
 export default function DemoControls() {
   const { state, triggerScenario, selectAstronaut, setNav, simulateCommDelay, resumeComm } = useApp();
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div style={{
-      position: 'fixed', bottom: 16, right: 16,
-      background: '#0d1320', border: '1px solid #1e2d45',
-      borderRadius: 8, padding: 14, width: 260, zIndex: 100,
-      boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
-    }}>
-      <div style={{ fontSize: 10, color: '#3b82f6', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10 }}>
-        Demo Controls
+    <div className={`demo-console${isOpen ? ' open' : ''}`}>
+      <button
+        className="demo-console-trigger hud-btn"
+        onClick={() => setIsOpen(value => !value)}
+        aria-expanded={isOpen}
+        aria-controls="demo-scenario-console"
+      >
+        <span className="demo-console-glyph" aria-hidden>◇</span>
+        Scenario Console
+        <span className="demo-console-state">{state.scenario.replaceAll('_', ' ')}</span>
+      </button>
+
+      {isOpen && <div id="demo-scenario-console" className="demo-console-panel hud-glass-3 slide-in-top">
+      <div className="demo-console-header">
+        <div>
+          <div className="hud-label">Simulation Controls</div>
+          <div className="hud-unit">Mission operator sandbox</div>
+        </div>
+        <button className="demo-console-close" onClick={() => setIsOpen(false)} aria-label="Close scenario console">×</button>
       </div>
 
-      <div style={{ fontSize: 9, color: '#334155', marginBottom: 8 }}>Select scenario to simulate:</div>
+      <div className="demo-console-hint">Select a crew health scenario</div>
 
       {SCENARIOS.map(scenario => {
-        const isActive = state.selectedAstronautId === scenario.astronautId;
+        const isActive = state.scenario === scenario.id;
         return (
           <button
             key={scenario.id}
+            className="demo-scenario-button"
             onClick={() => {
               triggerScenario(scenario.id, scenario.astronautId);
               selectAstronaut(scenario.astronautId);
@@ -65,53 +79,46 @@ export default function DemoControls() {
               }
             }}
             style={{
-              display: 'flex', width: '100%', gap: 8, alignItems: 'flex-start',
-              padding: '7px 10px', marginBottom: 4,
               background: isActive ? `${scenario.color}10` : 'transparent',
-              border: `1px solid ${isActive ? scenario.color + '60' : '#1e2a3a'}`,
-              borderRadius: 4, cursor: 'pointer', textAlign: 'left',
+              borderColor: isActive ? scenario.color + '60' : undefined,
             }}
+            aria-pressed={isActive}
           >
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: scenario.color, flexShrink: 0, marginTop: 3 }} />
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: isActive ? scenario.color : '#94a3b8' }}>{scenario.label}</div>
-              <div style={{ fontSize: 9, color: '#475569' }}>{scenario.desc}</div>
+              <div className="demo-scenario-title" style={{ color: isActive ? scenario.color : undefined }}>{scenario.label}</div>
+              <div className="demo-scenario-description">{scenario.desc}</div>
             </div>
           </button>
         );
       })}
 
       {/* Comm delay */}
-      <div style={{ borderTop: '1px solid #1e2a3a', paddingTop: 10, marginTop: 6 }}>
-        <div style={{ fontSize: 9, color: '#334155', marginBottom: 6 }}>Earth Communication:</div>
+      <div className="demo-comm-control">
+        <div className="demo-console-hint">Earth communication</div>
         {state.commStatus.mode === 'NOMINAL' ? (
           <button
             onClick={() => simulateCommDelay(18)}
-            style={{
-              width: '100%', padding: '6px 10px', background: 'transparent',
-              border: '1px solid #fbbf2440', borderRadius: 4, color: '#fbbf24',
-              fontSize: 10, cursor: 'pointer', fontWeight: 500,
-            }}
+            className="hud-btn demo-comm-button"
+            style={{ color: 'var(--status-yellow)', borderColor: 'var(--status-yellow-border)' }}
           >
             Simulate 18-min Delay
           </button>
         ) : (
           <button
             onClick={() => resumeComm()}
-            style={{
-              width: '100%', padding: '6px 10px', background: 'transparent',
-              border: '1px solid #34d39940', borderRadius: 4, color: '#34d399',
-              fontSize: 10, cursor: 'pointer', fontWeight: 500,
-            }}
+            className="hud-btn demo-comm-button"
+            style={{ color: 'var(--status-green)', borderColor: 'var(--status-green-border)' }}
           >
             Resume Comm (Active: {state.commStatus.delayMinutes}m delay)
           </button>
         )}
       </div>
 
-      <div style={{ fontSize: 8, color: '#1e2a3a', marginTop: 8, textAlign: 'center' }}>
-        MVP Demo Mode · Simulated Data
+      <div className="demo-console-footnote">
+        Simulated mission data · no clinical use
       </div>
+      </div>}
     </div>
   );
 }

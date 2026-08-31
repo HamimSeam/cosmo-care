@@ -74,7 +74,7 @@ export function analyzeHealthRisk(astronaut: Astronaut): { riskLevel: RiskLevel;
 // ─── Recovery Score Engine ────────────────────────────────────────────────────
 
 export function computeRecoveryScore(astronaut: Astronaut): number {
-  const { physiological: p, recovery: r, cognitive: c, symptoms: s } = astronaut;
+  const { physiological: p, recovery: r, symptoms: s } = astronaut;
 
   let score = 100;
 
@@ -260,7 +260,7 @@ export function generateEmergencySupport(astronaut: Astronaut): {
 
 // ─── AI Assistant Query ───────────────────────────────────────────────────────
 
-export function queryAIAssistant(query: string, astronaut?: Astronaut): {
+export function queryAIAssistant(query: string): {
   answer: string;
   sources: string[];
   confidence: string;

@@ -30,9 +30,9 @@ export default function MissionReadiness() {
 
   return (
     <div className="content-area">
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Mission Readiness</div>
-        <div style={{ fontSize: 12, color: '#64748b' }}>AI activity clearance evaluation · {a.name}</div>
+      <div className="view-header">
+        <div className="view-title">Mission Readiness</div>
+        <div className="view-subtitle">AI activity clearance evaluation · {a.name}</div>
       </div>
 
       <div className="grid-main-side">
@@ -43,13 +43,11 @@ export default function MissionReadiness() {
             {ACTIVITIES.map(act => (
               <button
                 key={act.id}
+                className="hud-choice"
                 onClick={() => setSelectedActivity(act.id)}
                 style={{
-                  display: 'flex', width: '100%', gap: 12, alignItems: 'flex-start',
-                  padding: '10px 12px', marginBottom: 4,
-                  background: selectedActivity === act.id ? '#1e2d45' : 'transparent',
-                  border: `1px solid ${selectedActivity === act.id ? '#3b82f6' : '#1e2a3a'}`,
-                  borderRadius: 4, cursor: 'pointer', textAlign: 'left',
+                  background: selectedActivity === act.id ? 'rgba(77,232,208,0.07)' : 'transparent',
+                  borderColor: selectedActivity === act.id ? 'var(--accent-border)' : undefined,
                 }}
               >
                 <span style={{ fontSize: 10, color: selectedActivity === act.id ? '#60a5fa' : '#475569', flexShrink: 0, marginTop: 2 }}>
@@ -64,7 +62,7 @@ export default function MissionReadiness() {
           </div>
 
           {/* Evaluation result */}
-          <div style={{ background: sc.bg, border: `1px solid ${sc.border}`, borderRadius: 6, padding: 16 }}>
+          <div className="readiness-focus" style={{ background: sc.bg, border: `1px solid ${sc.border}` }}>
             <div style={{ marginBottom: 12 }}>
               <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
                 {selectedActivity} READINESS — {a.name}
@@ -106,7 +104,7 @@ export default function MissionReadiness() {
               <div style={{ marginTop: 12, background: 'rgba(30,45,69,0.5)', borderRadius: 4, padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                 <div style={{ fontSize: 10, fontWeight: 600, color: '#60a5fa', marginBottom: 6 }}>Why was this readiness score calculated?</div>
                 <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.6 }}>
-                  The readiness score is computed by evaluating {a.name}'s current physiological state, personal baseline deviations, recovery score, sleep status, cognitive performance, and any active medical events against the requirements of the selected activity. Each factor contributes a weighted deduction from a maximum score of 100. The evaluation uses {a.name}'s personal baseline, not universal thresholds.
+                  The readiness score is computed by evaluating {a.name}&apos;s current physiological state, personal baseline deviations, recovery score, sleep status, cognitive performance, and any active medical events against the requirements of the selected activity. Each factor contributes a weighted deduction from a maximum score of 100. The evaluation uses {a.name}&apos;s personal baseline, not universal thresholds.
                 </div>
               </div>
             )}

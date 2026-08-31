@@ -12,8 +12,6 @@ import MedicalEvents from '@/components/views/MedicalEvents';
 import RecoveryView from '@/components/views/RecoveryView';
 import MedicalResources from '@/components/views/MedicalResources';
 import AIAssistant from '@/components/views/AIAssistant';
-import HealthTimeline from '@/components/views/HealthTimeline';
-
 function AppShell() {
   const { state } = useApp();
 
@@ -31,13 +29,20 @@ function AppShell() {
     }
   };
 
+  const isMissionOverview = state.activeNav === 'mission-overview';
+
   return (
-    <div className="app-root">
+    <div className="app-root" data-view={state.activeNav} data-scenario={state.scenario}>
       <Sidebar />
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div className="app-workspace" style={{ background: isMissionOverview ? 'transparent' : undefined }}>
         <TopBar />
-        <div className="main-content">
-          {renderView()}
+        <div
+          className={isMissionOverview ? 'mission-overview-shell' : 'main-content'}
+          style={isMissionOverview ? { flex: 1, overflow: 'hidden', position: 'relative' } : undefined}
+        >
+          <div key={`${state.activeNav}-${state.scenario}`} className="view-stage">
+            {renderView()}
+          </div>
         </div>
       </div>
       <DemoControls />

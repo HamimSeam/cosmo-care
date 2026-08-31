@@ -6,7 +6,7 @@ import { generateEmergencySupport } from '@/lib/aiEngine';
 import type { MedicalEvent } from '@/types';
 
 export default function MedicalEvents() {
-  const { astronauts, selectedAstronaut: a, state, setEmergencyMode, dispatch } = useApp();
+  const { astronauts, selectedAstronaut: a, state, setEmergencyMode } = useApp();
   const [selectedEvent, setSelectedEvent] = useState<MedicalEvent | null>(
     a.medicalEvents[0] || null
   );
@@ -31,9 +31,9 @@ export default function MedicalEvents() {
   if (allEvents.length === 0) {
     return (
       <div className="content-area">
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Medical Events</div>
-          <div style={{ fontSize: 12, color: '#64748b' }}>Active and historical medical events</div>
+        <div className="view-header">
+          <div className="view-title">Medical Events</div>
+          <div className="view-subtitle">Active and historical medical events</div>
         </div>
         <div className="card" style={{ textAlign: 'center', padding: 40 }}>
           <div style={{ fontSize: 32, marginBottom: 10 }}>✓</div>
@@ -46,9 +46,9 @@ export default function MedicalEvents() {
 
   return (
     <div className="content-area">
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Medical Events</div>
-        <div style={{ fontSize: 12, color: '#64748b' }}>Active and historical medical events requiring medical review</div>
+      <div className="view-header">
+        <div className="view-title">Medical Events</div>
+        <div className="view-subtitle">Active and historical medical events requiring medical review</div>
       </div>
 
       {/* Emergency banner */}
@@ -82,11 +82,12 @@ export default function MedicalEvents() {
             return (
               <div
                 key={event.id}
+                className={`hud-data-panel event-panel${isSelected ? ' selected' : ''}`}
                 onClick={() => { setSelectedEvent(event); setActiveAstronaut(event.astronaut); }}
                 style={{
-                  background: isSelected ? sc.bg : 'var(--surface)',
-                  border: `1px solid ${isSelected ? sc.border : 'var(--border)'}`,
-                  borderRadius: 6, padding: 16, cursor: 'pointer',
+                  background: isSelected ? sc.bg : undefined,
+                  borderColor: isSelected ? sc.border : undefined,
+                  padding: 16, cursor: 'pointer',
                 }}
               >
                 {/* Header */}

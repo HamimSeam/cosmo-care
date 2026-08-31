@@ -87,7 +87,7 @@ export function readinessStatusColor(status: string): string {
   }[status] ?? 'text-slate-400';
 }
 
-export function formatDeviation(pct: number, unit?: string): string {
+export function formatDeviation(pct: number): string {
   if (Math.abs(pct) < 1) return 'Within baseline';
   const sign = pct > 0 ? '+' : '';
   return `${sign}${pct}%`;

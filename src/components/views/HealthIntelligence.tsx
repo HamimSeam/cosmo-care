@@ -2,7 +2,7 @@
 
 import { useApp } from '@/context/AppContext';
 import { analyzeHealthRisk } from '@/lib/aiEngine';
-import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, type TooltipProps } from 'recharts';
+import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
 export default function HealthIntelligence() {
   const { selectedAstronaut: a } = useApp();
@@ -39,13 +39,13 @@ export default function HealthIntelligence() {
 
   return (
     <div className="content-area">
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Health Intelligence</div>
-        <div style={{ fontSize: 12, color: '#64748b' }}>AI-powered multivariate pattern analysis · {a.name}</div>
+      <div className="view-header">
+        <div className="view-title">Health Intelligence</div>
+        <div className="view-subtitle">AI-powered multivariate pattern analysis · {a.name}</div>
       </div>
 
       {/* Risk summary */}
-      <div style={{ background: rc.bg, border: `1px solid ${rc.border}`, borderRadius: 6, padding: 16, marginBottom: 20 }}>
+      <div className={`intelligence-focus${riskLevel === 'CRITICAL' ? ' critical-panel' : ''}`} style={{ background: rc.bg, border: `1px solid ${rc.border}` }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20 }}>
           <div style={{ textAlign: 'center', flexShrink: 0 }}>
             <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Risk Level</div>
@@ -147,6 +147,35 @@ export default function HealthIntelligence() {
   );
 }
 
+function TrendChartTooltip({
+  active,
+  payload,
+  label,
+  unit,
+  baselineValue,
+  color,
+}: {
+  active?: boolean;
+  payload?: Array<{ value?: number }>;
+  label?: string;
+  unit: string;
+  baselineValue: number;
+  color: string;
+}) {
+  if (active && payload && payload.length) {
+    return (
+      <div style={{ background: '#0d1320', border: '1px solid #1e2a3a', borderRadius: 4, padding: '8px 12px' }}>
+        <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>{label}</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color }}>
+          {payload[0]?.value?.toFixed(1)} {unit}
+        </div>
+        <div style={{ fontSize: 10, color: '#475569' }}>Baseline: {baselineValue.toFixed(1)} {unit}</div>
+      </div>
+    );
+  }
+  return null;
+}
+
 function TrendChart({
   title, data, color, unit, baselineLabel, baselineValue
 }: {
@@ -157,21 +186,6 @@ function TrendChart({
   baselineLabel: string;
   baselineValue: number;
 }) {
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div style={{ background: '#0d1320', border: '1px solid #1e2a3a', borderRadius: 4, padding: '8px 12px' }}>
-          <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>{label}</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color }}>
-            {payload[0]?.value?.toFixed(1)} {unit}
-          </div>
-          <div style={{ fontSize: 10, color: '#475569' }}>Baseline: {baselineValue.toFixed(1)} {unit}</div>
-        </div>
-      );
-    }
-    return null;
-  };
-
   const allValues = data.map(d => d.value).filter((v): v is number => v !== null);
   const minVal = Math.min(...allValues, baselineValue) * 0.9;
   const maxVal = Math.max(...allValues, baselineValue) * 1.1;
@@ -187,7 +201,7 @@ function TrendChart({
           <CartesianGrid strokeDasharray="3 3" stroke="#1e2a3a" />
           <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false} />
           <YAxis tick={{ fontSize: 10, fill: '#475569' }} axisLine={false} tickLine={false} domain={[minVal, maxVal]} />
-          <Tooltip content={<CustomTooltip />} />
+          <Tooltip content={<TrendChartTooltip unit={unit} baselineValue={baselineValue} color={color} />} />
           <ReferenceLine y={baselineValue} stroke="#334155" strokeDasharray="4 4" />
           <Line
             type="monotone" dataKey="value" stroke={color} strokeWidth={2}

@@ -1,8 +1,7 @@
 import type {
   Astronaut, MetricWithBaseline, HealthStatus,
-  AIAlert, MedicalEvent, TimelineEntry, RecoveryData,
-  PhysiologicalData, ActivityData, EnvironmentalData,
-  CognitiveData, ReadinessEvaluation
+  AIAlert, TimelineEntry, RecoveryData,
+  PhysiologicalData, ActivityData,
 } from '@/types';
 
 // ─── Helper ───────────────────────────────────────────────────────────────────

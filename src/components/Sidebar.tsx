@@ -2,16 +2,17 @@
 
 import { useApp } from '@/context/AppContext';
 import type { NavSection } from '@/types';
+import { HUDStatusDot } from '@/components/HUDComponents';
 
 const NAV_ITEMS: { id: NavSection; label: string; icon: string }[] = [
-  { id: 'mission-overview',   label: 'Mission Overview',   icon: '◉' },
-  { id: 'crew-health',        label: 'Crew Health',        icon: '♥' },
-  { id: 'health-intelligence',label: 'Health Intelligence',icon: '◈' },
-  { id: 'mission-readiness',  label: 'Mission Readiness',  icon: '▲' },
-  { id: 'medical-events',     label: 'Medical Events',     icon: '⚠' },
-  { id: 'recovery',           label: 'Recovery',           icon: '↺' },
-  { id: 'medical-resources',  label: 'Medical Resources',  icon: '✚' },
-  { id: 'ai-assistant',       label: 'AI Assistant',       icon: '◆' },
+  { id: 'mission-overview',    label: 'Mission Overview',    icon: '◉' },
+  { id: 'crew-health',         label: 'Crew Health',         icon: '♥' },
+  { id: 'health-intelligence', label: 'Health Intelligence', icon: '◈' },
+  { id: 'mission-readiness',   label: 'Mission Readiness',   icon: '▲' },
+  { id: 'medical-events',      label: 'Medical Events',      icon: '⚠' },
+  { id: 'recovery',            label: 'Recovery',            icon: '↺' },
+  { id: 'medical-resources',   label: 'Medical Resources',   icon: '✚' },
+  { id: 'ai-assistant',        label: 'AI Assistant',        icon: '◆' },
 ];
 
 export default function Sidebar() {
@@ -20,70 +21,142 @@ export default function Sidebar() {
   const criticalCount = astronauts.filter(a => a.healthStatus === 'RED').length;
 
   return (
-    <div className="sidebar">
-      {/* Logo */}
-      <div style={{ padding: '16px 14px 12px', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+    <aside className="sidebar" aria-label="Primary mission navigation">
+
+      {/* ── Logo ─────────────────────────────────────────────────────── */}
+      <div className="sidebar-brand" style={{
+        padding: '14px 14px 12px',
+        borderBottom: '1px solid var(--glass-1-border)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 6 }}>
+          {/* Mark */}
           <div style={{
-            width: 28, height: 28, borderRadius: 4,
-            background: 'linear-gradient(135deg, #1e40af, #0891b2)',
+            width: 26, height: 26, borderRadius: 'var(--radius-sm)',
+            background: 'linear-gradient(135deg, rgba(30,64,175,0.9), rgba(8,145,178,0.9))',
+            border: '1px solid var(--accent-border)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 14, fontWeight: 700, color: '#fff', flexShrink: 0,
+            fontSize: 12, fontWeight: 800, color: '#fff', flexShrink: 0,
+            boxShadow: '0 0 10px rgba(77,232,208,0.2)',
           }}>C</div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', letterSpacing: '0.02em' }}>COSMOCARE</div>
-            <div style={{ fontSize: 9, color: '#475569', letterSpacing: '0.1em', textTransform: 'uppercase' }}>AI · Health Intelligence</div>
+
+          <div className="sidebar-brand-copy">
+            <div style={{
+              fontSize: 12, fontWeight: 700, letterSpacing: '0.14em',
+              textTransform: 'uppercase', color: 'var(--accent-cyan)',
+            }}>
+              COSMOCARE
+            </div>
+            <div style={{
+              fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase',
+              color: 'var(--text-dim)',
+            }}>
+              Health Intelligence
+            </div>
           </div>
         </div>
-        <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
-          <span style={{ fontSize: 10, color: '#64748b' }}>MISSION DAY</span>
-          <span style={{ fontSize: 10, color: '#60a5fa', fontWeight: 600 }}>{state.missionDay}</span>
+
+        {/* Mission day */}
+        <div className="sidebar-mission-day" style={{
+          display: 'flex', alignItems: 'center', gap: 5,
+          padding: '4px 6px',
+          background: 'rgba(77,232,208,0.04)',
+          border: '1px solid var(--glass-1-border)',
+          borderRadius: 'var(--radius-sm)',
+        }}>
+          <span style={{
+            fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase',
+            color: 'var(--text-dim)',
+          }}>
+            MISSION DAY
+          </span>
+          <span style={{
+            fontSize: 11, fontWeight: 700, color: 'var(--accent-cyan)',
+            letterSpacing: '0.04em',
+          }}>
+            {state.missionDay}
+          </span>
         </div>
       </div>
 
-      {/* Nav */}
-      <nav style={{ flex: 1, padding: '8px 8px', overflowY: 'auto' }}>
+      {/* ── Navigation ───────────────────────────────────────────────── */}
+      <nav style={{ flex: 1, padding: '6px 8px', overflowY: 'auto' }}>
         {NAV_ITEMS.map(item => (
           <button
             key={item.id}
             className={`nav-item${state.activeNav === item.id ? ' active' : ''}`}
             onClick={() => setNav(item.id)}
+            aria-current={state.activeNav === item.id ? 'page' : undefined}
+            aria-label={item.label}
+            title={item.label}
           >
-            <span style={{ fontSize: 12, width: 14, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
-            <span>{item.label}</span>
+            <span style={{
+              fontSize: 11, width: 14, textAlign: 'center', flexShrink: 0,
+              opacity: state.activeNav === item.id ? 1 : 0.5,
+            }}>
+              {item.icon}
+            </span>
+            <span className="nav-label" style={{ flex: 1 }}>{item.label}</span>
+
+            {/* Critical alert badge */}
             {item.id === 'medical-events' && criticalCount > 0 && (
               <span style={{
-                marginLeft: 'auto', background: '#dc2626', color: '#fff',
-                borderRadius: 10, fontSize: 10, padding: '1px 6px', fontWeight: 600,
-              }}>{criticalCount}</span>
+                marginLeft: 'auto',
+                background: 'var(--status-red-bg)',
+                color: 'var(--status-red)',
+                border: '1px solid var(--status-red-border)',
+                borderRadius: 10, fontSize: 9,
+                padding: '1px 6px', fontWeight: 700,
+                boxShadow: '0 0 8px var(--status-red-glow)',
+                letterSpacing: '0.04em',
+              }}>
+                {criticalCount}
+              </span>
             )}
           </button>
         ))}
       </nav>
 
-      {/* Crew status mini */}
-      <div style={{ padding: '10px 12px', borderTop: '1px solid var(--border)' }}>
-        <div style={{ fontSize: 10, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Crew Status</div>
+      {/* ── Crew status mini ─────────────────────────────────────────── */}
+      <div className="sidebar-crew" style={{
+        padding: '10px 12px',
+        borderTop: '1px solid var(--glass-1-border)',
+      }}>
+        <div style={{
+          fontSize: 9, letterSpacing: '0.10em', textTransform: 'uppercase',
+          color: 'var(--text-dim)', marginBottom: 8,
+        }}>
+          Crew Status
+        </div>
         {astronauts.map(a => (
           <div
             key={a.id}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}
           >
-            <div style={{
-              width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-              background: { GREEN: '#34d399', YELLOW: '#fbbf24', ORANGE: '#fb923c', RED: '#f87171' }[a.healthStatus],
-            }} />
-            <span style={{ fontSize: 11, color: '#94a3b8' }}>{a.name}</span>
+            <HUDStatusDot status={a.healthStatus} size={6} pulse={a.healthStatus === 'RED'} />
+            <span style={{
+              fontSize: 11,
+              color: a.healthStatus === 'RED' ? 'var(--status-red)' : 'var(--text-muted)',
+              transition: 'color 0.4s ease',
+            }}>
+              {a.name}
+            </span>
           </div>
         ))}
       </div>
 
-      {/* Version */}
-      <div style={{ padding: '8px 12px', borderTop: '1px solid var(--border)' }}>
-        <div style={{ fontSize: 9, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          CosmoCare AI v1.0 MVP · Demo Mode
+      {/* ── Version ──────────────────────────────────────────────────── */}
+      <div className="sidebar-version" style={{
+        padding: '6px 12px 8px',
+        borderTop: '1px solid var(--glass-1-border)',
+      }}>
+        <div style={{
+          fontSize: 9, letterSpacing: '0.07em', textTransform: 'uppercase',
+          color: 'var(--text-dim)',
+        }}>
+          CosmoCare AI v1.0 · Demo Mode
         </div>
       </div>
-    </div>
+
+    </aside>
   );
 }

@@ -4,7 +4,7 @@ import { useApp } from '@/context/AppContext';
 import type { MetricWithBaseline } from '@/types';
 import { symptomColor, symptomLabel } from '@/lib/utils';
 import {
-  LineChart, Line, ResponsiveContainer, Tooltip
+  LineChart, Line, ResponsiveContainer
 } from 'recharts';
 
 function MetricRow({ metric }: { metric: MetricWithBaseline }) {
@@ -63,7 +63,7 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
 }
 
 export default function CrewHealth() {
-  const { selectedAstronaut: a, setNav } = useApp();
+  const { selectedAstronaut: a } = useApp();
   const { physiological: p, activity: act, recovery: r, environmental: env, cognitive: cog, symptoms: sym } = a;
 
   const statusColor = { GREEN: '#34d399', YELLOW: '#fbbf24', ORANGE: '#fb923c', RED: '#f87171' }[a.healthStatus];
@@ -71,7 +71,7 @@ export default function CrewHealth() {
   return (
     <div className="content-area">
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+      <div className="view-header crew-view-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
             <div style={{
@@ -83,8 +83,8 @@ export default function CrewHealth() {
               {a.avatar}
             </div>
             <div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: '#e2e8f0' }}>{a.name}</div>
-              <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              <div className="view-title">{a.name}</div>
+              <div className="view-subtitle" style={{ textTransform: 'uppercase' }}>
                 {a.role} · Mission Day {a.missionDay}
               </div>
             </div>
@@ -92,13 +92,12 @@ export default function CrewHealth() {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {/* Health score */}
-          <div style={{ textAlign: 'center', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 16px' }}>
+          <div className="telemetry-chip" style={{ textAlign: 'center', padding: '10px 16px' }}>
             <div style={{ fontSize: 24, fontWeight: 700, color: statusColor }}>{a.overallHealthScore}</div>
             <div style={{ fontSize: 9, color: '#475569', textTransform: 'uppercase' }}>Health Score</div>
           </div>
-          <div style={{
-            textAlign: 'center', background: 'var(--surface)', border: `1px solid ${statusColor}30`,
-            borderRadius: 6, padding: '10px 16px',
+          <div className="telemetry-chip" style={{
+            textAlign: 'center', borderColor: `${statusColor}30`, padding: '10px 16px',
           }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: statusColor }}>{a.healthStatus}</div>
             <div style={{ fontSize: 9, color: '#475569', textTransform: 'uppercase' }}>Status</div>
@@ -118,7 +117,7 @@ export default function CrewHealth() {
             }[alert.riskLevel];
 
             return (
-              <div key={alert.id} style={{ background: alertColors.bg, border: `1px solid ${alertColors.border}`, borderRadius: 6, padding: '12px 16px', marginBottom: 8 }}>
+              <div key={alert.id} className="health-alert-panel slide-in-top" style={{ background: alertColors.bg, border: `1px solid ${alertColors.border}` }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>

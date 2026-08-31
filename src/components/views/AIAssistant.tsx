@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useApp } from '@/context/AppContext';
 import { queryAIAssistant } from '@/lib/aiEngine';
 import { KNOWLEDGE_BASE } from '@/data/knowledgeBase';
 
@@ -17,7 +16,6 @@ const SUGGESTED_QUERIES = [
 ];
 
 export default function AIAssistant() {
-  const { selectedAstronaut: a } = useApp();
   const [query, setQuery] = useState('');
   const [result, setResult] = useState<ReturnType<typeof queryAIAssistant> | null>(null);
   const [loading, setLoading] = useState(false);
@@ -30,7 +28,7 @@ export default function AIAssistant() {
 
     // Simulate brief processing delay
     setTimeout(() => {
-      const res = queryAIAssistant(q, a);
+      const res = queryAIAssistant(q);
       setResult(res);
       setHistory(prev => [{ q, r: res }, ...prev.slice(0, 4)]);
       setLoading(false);
@@ -39,9 +37,9 @@ export default function AIAssistant() {
 
   return (
     <div className="content-area">
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>AI Medical Assistant</div>
-        <div style={{ fontSize: 12, color: '#64748b' }}>Protocol-grounded decision support · Demonstration knowledge base</div>
+      <div className="view-header">
+        <div className="view-title">AstroTriage</div>
+        <div className="view-subtitle">Protocol-grounded onboard decision support · Demonstration knowledge base</div>
       </div>
 
       <div className="grid-main-side">
