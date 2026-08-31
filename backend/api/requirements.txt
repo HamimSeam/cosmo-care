@@ -1,0 +1,6 @@
+# api/requirements.txt
+fastapi
+pydantic
+scikit-learn
+joblib
+ibm-watsonx-ai
