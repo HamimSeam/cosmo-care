@@ -1,5 +1,7 @@
 'use client';
 
+import Image from 'next/image';
+import { LiveNumber } from '@/components/core/live-number';
 import { useApp } from '@/context/AppContext';
 
 export default function TopBar() {
@@ -10,7 +12,14 @@ export default function TopBar() {
   return (
     <header className="topbar figma-topbar">
       <div className="figma-brand">
-        <span className="figma-brand-mark" aria-hidden />
+        <Image
+          className="figma-brand-logo"
+          src="/cosmo-care-logo.png"
+          alt="CosmoCare logo"
+          width={56}
+          height={56}
+          priority
+        />
         <div>
           <div className="figma-brand-name font-mono">COSMOCARE</div>
           <div className="figma-brand-subtitle font-mono">AI MEDICAL INTELLIGENCE</div>
@@ -20,14 +29,14 @@ export default function TopBar() {
       <div className="figma-mission-identity">
         <div className="figma-mission-name font-mono">ARTEMIS FORWARD</div>
         <div className="figma-mission-meta font-mono">
-          MISSION DAY {state.missionDay} · DEEP SPACE TRANSIT
+          MISSION DAY <LiveNumber value={state.missionDay} /> · DEEP SPACE TRANSIT
         </div>
       </div>
 
       <div className="figma-topbar-status">
         {alertCount > 0 && (
           <div className={`figma-alert-count font-mono${alertCount > 2 ? ' critical' : ''}`}>
-            {alertCount} ACTIVE ALERT{alertCount === 1 ? '' : 'S'}
+            <LiveNumber value={alertCount} /> ACTIVE ALERT{alertCount === 1 ? '' : 'S'}
           </div>
         )}
         <button

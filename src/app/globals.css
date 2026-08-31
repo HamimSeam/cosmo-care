@@ -24,8 +24,8 @@
 
   /* Text */
   --text: #c4daf0;
-  --text-muted: rgba(140, 190, 220, 0.62);
-  --text-dim: rgba(100, 160, 200, 0.45);
+  --text-muted: rgba(184, 214, 232, 0.78);
+  --text-dim: rgba(150, 190, 216, 0.62);
 
   /* ── Glass system ─────────────────────────────────────────────────────────
      Level 1: ultra-transparent — secondary telemetry, labels, floating controls
@@ -2085,6 +2085,14 @@ textarea:focus-visible,
   gap: 9px;
 }
 
+.figma-brand-logo {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  object-fit: contain;
+  filter: drop-shadow(0 0 7px rgba(34, 211, 238, 0.18));
+}
+
 .figma-brand-mark {
   width: 6px;
   height: 24px;
@@ -2103,7 +2111,7 @@ textarea:focus-visible,
 
 .figma-brand-subtitle {
   margin-top: 1px;
-  color: rgba(100, 160, 200, 0.60);
+  color: rgba(170, 205, 226, 0.78);
   font-size: 7.5px;
   letter-spacing: 0.18em;
 }
@@ -2125,7 +2133,7 @@ textarea:focus-visible,
 
 .figma-mission-meta {
   margin-top: 2px;
-  color: rgba(100, 160, 200, 0.50);
+  color: rgba(165, 200, 222, 0.72);
   font-size: 8px;
   letter-spacing: 0.16em;
 }
@@ -2228,7 +2236,7 @@ textarea:focus-visible,
   justify-content: center;
   gap: 4px;
   padding: 7px 0;
-  color: rgba(100, 160, 200, 0.42);
+  color: rgba(174, 208, 230, 0.76);
   background: transparent;
   border: 0;
   border-left: 1.5px solid transparent;
@@ -2236,7 +2244,7 @@ textarea:focus-visible,
 }
 
 .figma-nav-rail .nav-item:hover {
-  color: rgba(140, 190, 220, 0.75);
+  color: rgba(220, 238, 248, 0.96);
   background: rgba(34, 211, 238, 0.04);
 }
 
@@ -2265,7 +2273,7 @@ textarea:focus-visible,
   display: inline !important;
   color: inherit;
   font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
-  font-size: 6.5px;
+  font-size: 7px;
   line-height: 1;
   letter-spacing: 0.10em;
 }
@@ -2591,5 +2599,390 @@ textarea:focus-visible,
   .figma-scenario-option {
     min-width: 55px;
     padding-inline: 5px;
+  }
+}
+
+/* Readability pass for small telemetry and navigation labels. */
+.view-subtitle,
+.card-title,
+.hud-label,
+.figma-panel-header > div:first-child,
+.figma-panel-header > div > span:first-child,
+.figma-panel-header.compact small,
+.figma-metric-label,
+.figma-factor-list > div,
+.figma-assessment > span,
+.figma-scenario-label,
+.figma-scenario-option {
+  color: rgba(180, 211, 231, 0.76);
+}
+
+.figma-panel-footer > span:nth-child(2),
+.figma-mission-stats span,
+.figma-scenario-option > span:last-child {
+  color: rgba(165, 201, 224, 0.66);
+}
+
+/* Transparent command header over the spacecraft scene. */
+.app-root {
+  position: relative;
+}
+
+.figma-topbar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 200;
+  height: 76px;
+  padding: 0 22px;
+  background: transparent;
+  border-bottom: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  pointer-events: none;
+}
+
+.figma-brand,
+.figma-mission-identity,
+.figma-topbar-status {
+  pointer-events: auto;
+}
+
+.figma-brand-logo {
+  width: 56px;
+  height: 56px;
+  filter: drop-shadow(0 0 10px rgba(34, 211, 238, 0.22));
+}
+
+.app-body {
+  height: 100vh;
+}
+
+.figma-nav-rail {
+  padding-top: 82px;
+}
+
+.figma-hud-layout {
+  inset: 78px 12px 64px;
+}
+
+.figma-overview-label {
+  top: 76px;
+}
+
+.content-area {
+  padding-top: 92px;
+}
+
+.figma-tilt-shell {
+  position: relative;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.figma-hud-layout > .figma-tilt-shell {
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+
+.figma-right-stack > .figma-tilt-shell {
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.figma-tilt-shell > .figma-glass-panel {
+  width: 100%;
+}
+
+/* Slightly clearer glass so the spacecraft and star field remain visible. */
+.figma-glass-panel,
+.card,
+.hud-data-panel,
+.telemetry-chip,
+.readiness-focus,
+.health-alert-panel,
+.intelligence-focus {
+  background-color: rgba(5, 16, 32, 0.60);
+}
+
+.figma-nav-rail {
+  background-color: rgba(3, 10, 22, 0.72);
+}
+
+.figma-mission-stats > div,
+.figma-scenario-console {
+  background-color: rgba(4, 12, 24, 0.64);
+}
+
+/* Slightly larger global type and proportionate HUD card sizing. */
+html,
+body {
+  font-size: 15px;
+}
+
+.view-title {
+  font-size: 23px;
+}
+
+.view-subtitle,
+.card-title,
+.hud-label {
+  font-size: 10px;
+}
+
+.figma-brand-name,
+.figma-mission-name {
+  font-size: 12px;
+}
+
+.figma-brand-subtitle,
+.figma-mission-meta {
+  font-size: 8.5px;
+}
+
+.figma-nav-rail .nav-label {
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+.nav-icon {
+  font-size: 14px;
+}
+
+.figma-crew-panel {
+  width: 304px;
+}
+
+.figma-right-stack {
+  width: clamp(300px, 29vw, 336px);
+}
+
+.figma-panel-header {
+  padding: 15px 17px 13px;
+}
+
+.figma-panel-header > div:first-child,
+.figma-panel-header > div > span:first-child {
+  font-size: 9.5px;
+}
+
+.figma-crew-summary span,
+.figma-panel-header.compact small {
+  font-size: 8px;
+}
+
+.figma-crew-row {
+  padding: 14px 17px 13px 15px;
+}
+
+.figma-crew-copy strong {
+  font-size: 12.5px;
+}
+
+.figma-crew-copy small,
+.figma-crew-score small {
+  font-size: 8px;
+}
+
+.figma-crew-score strong {
+  font-size: 16px;
+}
+
+.figma-panel-footer {
+  padding: 10px 17px;
+}
+
+.figma-panel-footer > span:nth-child(2),
+.figma-panel-footer button,
+.figma-risk-badge {
+  font-size: 7.5px;
+}
+
+.figma-panel-header.compact {
+  padding: 12px 14px;
+}
+
+.figma-panel-header.compact strong {
+  font-size: 13px;
+}
+
+.figma-health-metrics {
+  padding-inline: 14px;
+}
+
+.figma-metric-row {
+  padding-block: 8px;
+}
+
+.figma-metric-label {
+  font-size: 8px;
+}
+
+.figma-metric-label em,
+.figma-metric-values small {
+  font-size: 7px;
+}
+
+.figma-metric-values strong {
+  font-size: 15px;
+}
+
+.figma-factor-list p,
+.figma-assessment p {
+  font-size: 9px;
+}
+
+.figma-open-triage {
+  padding-block: 8px;
+  font-size: 8.5px;
+}
+
+.figma-mission-stats > div {
+  min-width: 90px;
+  padding: 6px 11px;
+}
+
+.figma-mission-stats span,
+.figma-scenario-label {
+  font-size: 7.5px;
+}
+
+.figma-scenario-option {
+  min-width: 82px;
+  padding: 4px 9px;
+}
+
+.figma-scenario-option > span:first-child {
+  font-size: 8.5px;
+}
+
+.figma-scenario-option > span:last-child {
+  font-size: 7px;
+}
+
+.figma-health-panel {
+  background: rgba(8, 12, 20, 0.88);
+  border-color: rgba(34, 211, 238, 0.24);
+  box-shadow: 0 0 22px rgba(34, 211, 238, 0.08), inset 0 0 20px rgba(34, 211, 238, 0.025);
+}
+
+.live-number {
+  display: inline-block;
+  min-width: 1ch;
+  font-variant-numeric: tabular-nums;
+  text-align: inherit;
+  animation: live-number-glow 2.4s ease-in-out infinite;
+}
+
+.ecg-strip {
+  position: relative;
+  height: 38px;
+  margin: 0 14px;
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, transparent 49.5%, rgba(34, 211, 238, 0.035) 50%, transparent 50.5%),
+    linear-gradient(0deg, transparent 49.5%, rgba(34, 211, 238, 0.035) 50%, transparent 50.5%);
+  background-size: 18px 18px;
+  border-bottom: 1px solid rgba(34, 211, 238, 0.06);
+}
+
+.ecg-strip svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.ecg-strip path {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.ecg-trace-base {
+  stroke: color-mix(in srgb, var(--ecg-color) 18%, transparent);
+  stroke-width: 1;
+}
+
+.ecg-trace-sweep {
+  stroke: var(--ecg-color);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 0.18 0.82;
+  filter: drop-shadow(0 0 3px var(--ecg-color));
+  animation: ecg-sweep var(--ecg-speed, 2.2s) linear infinite;
+}
+
+.ecg-strip > span {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  color: color-mix(in srgb, var(--ecg-color) 65%, transparent);
+  font-size: 6px;
+  letter-spacing: 0.12em;
+}
+
+@keyframes ecg-sweep {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -1; }
+}
+
+@keyframes live-number-glow {
+  0%, 100% { text-shadow: none; }
+  50% { text-shadow: 0 0 7px currentColor; }
+}
+
+@media (max-width: 760px) {
+  .figma-topbar {
+    height: 66px;
+    padding-inline: 10px;
+  }
+
+  .figma-brand-logo {
+    width: 50px;
+    height: 50px;
+  }
+
+  .figma-nav-rail {
+    padding-top: 0;
+  }
+
+  .figma-hud-layout {
+    inset: 68px 10px 122px;
+  }
+
+  .figma-crew-panel {
+    width: 220px;
+  }
+
+  .content-area {
+    padding: 76px 12px 80px;
+  }
+
+}
+
+@media (max-width: 520px) {
+  .figma-hud-layout {
+    inset: auto 8px 126px;
+    height: 42%;
+  }
+
+  .figma-crew-panel {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .figma-tilt-shell {
+    transform: none !important;
+  }
+
+  .live-number,
+  .ecg-trace-sweep {
+    animation: none;
+  }
+
+  .ecg-trace-sweep {
+    stroke-dasharray: none;
   }
 }

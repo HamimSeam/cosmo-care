@@ -1,8 +1,8 @@
 'use client';
 
 import { useRef, useEffect, useMemo, useState, useCallback, Suspense } from 'react';
-import { Canvas, useFrame, useThree, ThreeEvent } from '@react-three/fiber';
-import { OrbitControls, useGLTF, Stars, Html, Environment, Lightformer } from '@react-three/drei';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { OrbitControls, useGLTF, Stars, Environment, Lightformer } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import type { Astronaut } from '@/types';
@@ -227,7 +227,7 @@ function computeSceneCamera(box: THREE.Box3, frameOffset: THREE.Vector3): SceneC
   };
 }
 
-// ─── Crew marker positions (mutable during edit mode) ─────────────────────────
+// ─── Crew marker positions (locked final ship coordinates) ────────────────────
 export const CREW_POSITIONS: Record<string, [number, number, number]> = {
   'maya-chen':   [ 1.921,  0.921,  1.464],
   'alex-rivera': [-1.890,  0.262, -0.254],
@@ -242,158 +242,81 @@ const STATUS_COLORS: Record<string, string> = {
   RED:    '#f87171',
 };
 
-// ─── Draggable crew marker ────────────────────────────────────────────────────
+// ─── Holographic crew marker ──────────────────────────────────────────────────
 
 function CrewMarker({
   astronaut,
   isSelected,
   onSelect,
-  editMode,
   position,
-  onDragStart,
-  onDragEnd,
-  onPositionChange,
 }: {
   astronaut: Astronaut;
   isSelected: boolean;
   onSelect: () => void;
-  editMode: boolean;
   position: [number, number, number];
-  onDragStart: () => void;
-  onDragEnd: () => void;
-  onPositionChange: (id: string, pos: [number, number, number]) => void;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const ringRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
   const [hovered, setHovered] = useState(false);
-  const [dragging, setDragging] = useState(false);
   const color = STATUS_COLORS[astronaut.healthStatus] ?? '#94a3b8';
-
-  const { camera, gl, raycaster } = useThree();
-
-  // Drag plane: perpendicular to camera, passing through current position
-  const dragPlane = useRef(new THREE.Plane());
-  const dragOffset = useRef(new THREE.Vector3());
-  const intersectPoint = useRef(new THREE.Vector3());
 
   useFrame(() => {
     if (!meshRef.current || !ringRef.current) return;
     const t = Date.now() * 0.003;
-    const pulse = 1 + Math.sin(t) * 0.15;
-    ringRef.current.scale.setScalar(isSelected ? pulse * 1.3 : pulse);
+    const pulse = 1 + Math.sin(t + astronaut.id.length) * 0.12;
+    const emphasis = isSelected ? 1.55 : hovered ? 1.25 : 1;
+    meshRef.current.scale.setScalar(hovered || isSelected ? 1.16 : 1);
+    ringRef.current.scale.setScalar(pulse * emphasis);
     if (meshRef.current.material instanceof THREE.MeshBasicMaterial) {
-      meshRef.current.material.opacity = hovered || isSelected || dragging ? 1 : 0.85;
+      meshRef.current.material.opacity = hovered || isSelected ? 1 : 0.88;
     }
   });
-
-  const handlePointerDown = useCallback((e: ThreeEvent<PointerEvent>) => {
-    if (!editMode) return;
-    e.stopPropagation();
-    setDragging(true);
-    onDragStart();
-
-    // Build a drag plane facing the camera at the marker's world position
-    const worldPos = new THREE.Vector3(...position);
-    const camDir = new THREE.Vector3();
-    camera.getWorldDirection(camDir);
-    dragPlane.current.setFromNormalAndCoplanarPoint(camDir, worldPos);
-
-    // Compute offset from intersection to group origin
-    raycaster.ray.intersectPlane(dragPlane.current, intersectPoint.current);
-    dragOffset.current.copy(intersectPoint.current).sub(worldPos);
-
-    gl.domElement.setPointerCapture(e.pointerId);
-    document.body.style.cursor = 'grabbing';
-  }, [editMode, position, camera, gl, raycaster, onDragStart]);
-
-  const handlePointerMove = useCallback((e: ThreeEvent<PointerEvent>) => {
-    if (!dragging) return;
-    e.stopPropagation();
-    if (raycaster.ray.intersectPlane(dragPlane.current, intersectPoint.current)) {
-      const newPos = intersectPoint.current.clone().sub(dragOffset.current);
-      onPositionChange(astronaut.id, [
-        parseFloat(newPos.x.toFixed(3)),
-        parseFloat(newPos.y.toFixed(3)),
-        parseFloat(newPos.z.toFixed(3)),
-      ]);
-    }
-  }, [dragging, raycaster, astronaut.id, onPositionChange]);
-
-  const handlePointerUp = useCallback((e: ThreeEvent<PointerEvent>) => {
-    if (!dragging) return;
-    e.stopPropagation();
-    setDragging(false);
-    onDragEnd();
-    gl.domElement.releasePointerCapture(e.pointerId);
-    document.body.style.cursor = editMode ? 'grab' : 'default';
-  }, [dragging, onDragEnd, gl, editMode]);
 
   return (
     <group ref={groupRef} position={position}>
       {/* Core dot */}
       <mesh
         ref={meshRef}
-        onClick={(e) => { if (!editMode) { e.stopPropagation(); onSelect(); } }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
+        renderOrder={100}
+        onClick={(e) => { e.stopPropagation(); onSelect(); }}
         onPointerOver={(e) => {
           e.stopPropagation();
           setHovered(true);
-          document.body.style.cursor = editMode ? 'grab' : 'pointer';
+          document.body.style.cursor = 'pointer';
         }}
         onPointerOut={() => {
           setHovered(false);
           document.body.style.cursor = 'default';
         }}
       >
-        <sphereGeometry args={[editMode ? 0.03 : 0.018, 12, 12]} />
-        <meshBasicMaterial color={dragging ? '#ffffff' : color} transparent opacity={0.85} />
+        <sphereGeometry args={[0.028, 16, 16]} />
+        <meshBasicMaterial color={color} transparent opacity={0.88} depthTest={false} depthWrite={false} />
+      </mesh>
+
+      {/* Invisible hit target keeps the compact marker easy to select through the hull. */}
+      <mesh
+        renderOrder={101}
+        onClick={(e) => { e.stopPropagation(); onSelect(); }}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          setHovered(true);
+          document.body.style.cursor = 'pointer';
+        }}
+        onPointerOut={() => {
+          setHovered(false);
+          document.body.style.cursor = 'default';
+        }}
+      >
+        <sphereGeometry args={[0.095, 16, 16]} />
+        <meshBasicMaterial transparent opacity={0} depthTest={false} depthWrite={false} />
       </mesh>
 
       {/* Pulse ring */}
-      <mesh ref={ringRef} rotation={[Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[editMode ? 0.035 : 0.022, editMode ? 0.045 : 0.028, 24]} />
-        <meshBasicMaterial color={color} transparent opacity={editMode ? 0.8 : 0.5} side={THREE.DoubleSide} />
+      <mesh ref={ringRef} rotation={[Math.PI / 2, 0, 0]} renderOrder={102}>
+        <ringGeometry args={[0.032, 0.042, 28]} />
+        <meshBasicMaterial color={color} transparent opacity={isSelected ? 0.82 : 0.55} side={THREE.DoubleSide} depthTest={false} depthWrite={false} />
       </mesh>
-
-      {/* Label — always show in edit mode, otherwise show on hover/select */}
-      {(editMode || hovered || isSelected) && (
-        <Html
-          position={[0, editMode ? 0.08 : 0.055, 0]}
-          center
-          style={{ pointerEvents: 'none', userSelect: 'none' }}
-          distanceFactor={2.5}
-        >
-          <div style={{
-            background: 'rgba(8,12,20,0.92)',
-            border: `1px solid ${dragging ? '#ffffff' : color}`,
-            borderRadius: 4,
-            padding: '4px 8px',
-            whiteSpace: 'nowrap',
-            fontFamily: 'inherit',
-          }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#e2e8f0', letterSpacing: '0.06em' }}>
-              {astronaut.name.toUpperCase()}
-            </div>
-            {editMode ? (
-              <div style={{ fontSize: 9, color: '#60a5fa', fontVariantNumeric: 'tabular-nums', marginTop: 2 }}>
-                [{position[0].toFixed(3)}, {position[1].toFixed(3)}, {position[2].toFixed(3)}]
-              </div>
-            ) : (
-              <>
-                <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  {astronaut.role}
-                </div>
-                <div style={{ fontSize: 9, color, fontWeight: 600, marginTop: 2 }}>
-                  ● {astronaut.healthStatus === 'GREEN' ? 'NOMINAL' : astronaut.healthStatus === 'YELLOW' ? 'MONITOR' : astronaut.healthStatus === 'ORANGE' ? 'ELEVATED' : 'CRITICAL'}
-                </div>
-              </>
-            )}
-          </div>
-        </Html>
-      )}
     </group>
   );
 }
@@ -405,22 +328,12 @@ function ShipWithMarkers({
   selectedId,
   onSelectAstronaut,
   cameraTarget,
-  editMode,
-  markerPositions,
-  onMarkerDragStart,
-  onMarkerDragEnd,
-  onMarkerPositionChange,
   onSceneReady,
 }: {
   astronauts: Astronaut[];
   selectedId: string;
   onSelectAstronaut: (id: string) => void;
   cameraTarget: [number, number, number] | null;
-  editMode: boolean;
-  markerPositions: Record<string, [number, number, number]>;
-  onMarkerDragStart: () => void;
-  onMarkerDragEnd: () => void;
-  onMarkerPositionChange: (id: string, pos: [number, number, number]) => void;
   onSceneReady: (camera: SceneCameraConfig) => void;
 }) {
   const groupRef = useRef<THREE.Group>(null);
@@ -473,11 +386,7 @@ function ShipWithMarkers({
           astronaut={a}
           isSelected={selectedId === a.id}
           onSelect={() => onSelectAstronaut(a.id)}
-          editMode={editMode}
-          position={markerPositions[a.id] ?? CREW_POSITIONS[a.id]}
-          onDragStart={onMarkerDragStart}
-          onDragEnd={onMarkerDragEnd}
-          onPositionChange={onMarkerPositionChange}
+          position={CREW_POSITIONS[a.id]}
         />
       ))}
     </group>
@@ -540,10 +449,7 @@ export default function SpacecraftViewer({ astronauts, selectedId, onSelectAstro
   const [cameraTarget, setCameraTarget] = useState<[number, number, number] | null>(null);
   const [sceneCamera, setSceneCamera] = useState<SceneCameraConfig>(FALLBACK_CAMERA);
   const [isShipLoaded, setIsShipLoaded] = useState(false);
-  const [orbitEnabled, setOrbitEnabled] = useState(true);
-  const [markerPositions, setMarkerPositions] = useState<Record<string, [number, number, number]>>(
-    Object.fromEntries(Object.entries(CREW_POSITIONS).map(([k, v]) => [k, [...v] as [number, number, number]]))
-  );
+  const orbitEnabled = true;
   const controlsRef = useRef<React.ComponentRef<typeof OrbitControls> | null>(null);
 
   const handleSceneReady = useCallback((camera: SceneCameraConfig) => {
@@ -554,14 +460,8 @@ export default function SpacecraftViewer({ astronauts, selectedId, onSelectAstro
 
   const handleSelect = useCallback((id: string) => {
     onSelectAstronaut(id);
-    const pos = markerPositions[id];
-    if (pos) setCameraTarget(pos);
-  }, [onSelectAstronaut, markerPositions]);
-
-  const handleMarkerPositionChange = useCallback((id: string, pos: [number, number, number]) => {
-    setMarkerPositions(prev => ({ ...prev, [id]: pos }));
-    CREW_POSITIONS[id] = pos; // keep module-level ref in sync
-  }, []);
+    setCameraTarget(CREW_POSITIONS[id] ?? null);
+  }, [onSelectAstronaut]);
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', background: 'transparent' }}>
@@ -570,6 +470,7 @@ export default function SpacecraftViewer({ astronauts, selectedId, onSelectAstro
         gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
         dpr={[1, 1.5]}
         onCreated={({ gl }) => configureRenderer(gl)}
+        onPointerMissed={() => handleSelect('')}
         shadows
         style={{ background: 'radial-gradient(circle at 50% 35%, #07111f 0%, #02050b 48%, #010208 100%)' }}
       >
@@ -584,9 +485,16 @@ export default function SpacecraftViewer({ astronauts, selectedId, onSelectAstro
           ref={controlsRef}
           enabled={orbitEnabled}
           target={sceneCamera.target}
-          enablePan={false}
+          enablePan
+          screenSpacePanning
+          mouseButtons={{
+            LEFT: THREE.MOUSE.ROTATE,
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.ROTATE,
+          }}
           enableZoom
           enableRotate
+          autoRotate={false}
           minDistance={sceneCamera.minDistance}
           maxDistance={sceneCamera.maxDistance}
           enableDamping
@@ -599,11 +507,6 @@ export default function SpacecraftViewer({ astronauts, selectedId, onSelectAstro
             selectedId={selectedId}
             onSelectAstronaut={handleSelect}
             cameraTarget={cameraTarget}
-            editMode={false}
-            markerPositions={markerPositions}
-            onMarkerDragStart={() => setOrbitEnabled(false)}
-            onMarkerDragEnd={() => setOrbitEnabled(true)}
-            onMarkerPositionChange={handleMarkerPositionChange}
             onSceneReady={handleSceneReady}
           />
         </Suspense>

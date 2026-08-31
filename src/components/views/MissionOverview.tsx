@@ -2,6 +2,9 @@
 
 import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
+import { ECGTrace } from '@/components/core/ecg-trace';
+import { LiveNumber } from '@/components/core/live-number';
+import { Tilt } from '@/components/core/tilt';
 import { useApp } from '@/context/AppContext';
 import { analyzeHealthRisk } from '@/lib/aiEngine';
 import type { Astronaut, HealthStatus } from '@/types';
@@ -30,7 +33,11 @@ const STATUS_LABEL: Record<HealthStatus, string> = {
 };
 
 function GlassPanel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <section className={`figma-glass-panel bracket ${className}`}>{children}</section>;
+  return (
+    <Tilt className="figma-tilt-shell" rotationFactor={3} isRevese>
+      <section className={`figma-glass-panel bracket ${className}`}>{children}</section>
+    </Tilt>
+  );
 }
 
 function MiniTrend({ data, color }: { data: number[]; color: string }) {
@@ -63,7 +70,7 @@ function CrewPanel({ onOpenProfile }: { onOpenProfile: () => void }) {
       <header className="figma-panel-header">
         <div className="font-mono">CREW STATUS</div>
         <div className="figma-crew-summary">
-          <strong>{astronauts.length}</strong>
+          <strong><LiveNumber value={astronauts.length} /></strong>
           <span className="font-mono">CREW MONITORED</span>
           {alertCount > 0 && <em className="font-mono">{alertCount} ALERTS</em>}
         </div>
@@ -90,7 +97,7 @@ function CrewPanel({ onOpenProfile }: { onOpenProfile: () => void }) {
                 </span>
                 <span className="figma-crew-score">
                   <small className="font-mono">{STATUS_LABEL[astronaut.healthStatus]}</small>
-                  <strong className="font-mono">{astronaut.overallHealthScore}</strong>
+                  <strong className="font-mono"><LiveNumber value={astronaut.overallHealthScore} /></strong>
                 </span>
               </div>
               <span className="figma-health-track"><span style={{ width: `${astronaut.overallHealthScore}%` }} /></span>
@@ -125,7 +132,7 @@ function MetricComparison({ label, current, baseline, unit, color }: {
       <div className="figma-metric-values">
         <span><small className="font-mono">BASELINE</small><strong className="font-mono">{baseline}<em>{unit}</em></strong></span>
         <b>→</b>
-        <span><small className="font-mono">CURRENT</small><strong className="font-mono" style={{ color }}>{current}<em>{unit}</em></strong></span>
+        <span><small className="font-mono">CURRENT</small><strong className="font-mono" style={{ color }}><LiveNumber value={current} /><em>{unit}</em></strong></span>
       </div>
     </div>
   );
@@ -144,10 +151,16 @@ function SelectedHealthPanel({ astronaut }: { astronaut: Astronaut }) {
           <small className="font-mono">{astronaut.role} · MISSION DAY {astronaut.missionDay}</small>
         </div>
         <div className="figma-selected-score" style={{ color }}>
-          <strong className="font-mono">{astronaut.overallHealthScore}</strong>
+          <strong className="font-mono"><LiveNumber value={astronaut.overallHealthScore} /></strong>
           <small className="font-mono">{STATUS_LABEL[astronaut.healthStatus]}</small>
         </div>
       </header>
+      <ECGTrace
+        astronautId={astronaut.id}
+        color={color}
+        heartRate={physiological.heartRate.current}
+        hrv={physiological.hrv.current}
+      />
       <div className="figma-health-metrics">
         <MetricComparison
           label="RESTING HEART RATE"
@@ -192,7 +205,7 @@ function IntelligencePanel({ astronaut, onOpen }: { astronaut: Astronaut; onOpen
           </strong>
         </div>
         <span className="figma-risk-badge font-mono" style={{ color: riskColor, borderColor: `${riskColor}45` }}>
-          {analysis.riskLevel} · {analysis.confidence}%
+          {analysis.riskLevel} · <LiveNumber value={analysis.confidence} />%
         </span>
       </header>
 
@@ -223,7 +236,7 @@ function TrendsPanel({ astronaut }: { astronaut: Astronaut }) {
       <header className="figma-panel-header compact inline">
         <div>
           <span className="font-mono">7-DAY TREND · RESTING HR</span>
-          <strong className="font-mono" style={{ color }}>{astronaut.physiological.restingHR.current} BPM</strong>
+          <strong className="font-mono" style={{ color }}><LiveNumber value={astronaut.physiological.restingHR.current} /> BPM</strong>
         </div>
         <small className="font-mono">BASELINE {astronaut.physiological.restingHR.baseline.min}–{astronaut.physiological.restingHR.baseline.max}</small>
       </header>
@@ -233,7 +246,8 @@ function TrendsPanel({ astronaut }: { astronaut: Astronaut }) {
 }
 
 export default function MissionOverview() {
-  const { astronauts, selectedAstronaut, state, selectAstronaut, setNav } = useApp();
+  const { astronauts, state, selectAstronaut, setNav } = useApp();
+  const focusedAstronaut = astronauts.find(astronaut => astronaut.id === state.selectedAstronautId);
   const nominalCount = astronauts.filter(astronaut => astronaut.healthStatus === 'GREEN').length;
   const alertCount = astronauts.length - nominalCount;
 
@@ -257,11 +271,11 @@ export default function MissionOverview() {
       <div className="figma-hud-layout">
         <CrewPanel onOpenProfile={() => setNav('crew-health')} />
         <div className="figma-hud-space" aria-hidden />
-        <div className="figma-right-stack">
-          <SelectedHealthPanel astronaut={selectedAstronaut} />
-          <IntelligencePanel astronaut={selectedAstronaut} onOpen={() => setNav('health-intelligence')} />
-          <TrendsPanel astronaut={selectedAstronaut} />
-        </div>
+        {focusedAstronaut && <div className="figma-right-stack">
+          <SelectedHealthPanel astronaut={focusedAstronaut} />
+          <IntelligencePanel astronaut={focusedAstronaut} onOpen={() => setNav('health-intelligence')} />
+          <TrendsPanel astronaut={focusedAstronaut} />
+        </div>}
       </div>
 
       <div className="figma-mission-stats">
@@ -271,7 +285,9 @@ export default function MissionOverview() {
           { label: 'ACTIVE ALERTS', value: alertCount },
         ].map(stat => (
           <div key={stat.label}>
-            <strong className="font-mono">{stat.value}</strong>
+            <strong className="font-mono">
+              {typeof stat.value === 'number' ? <LiveNumber value={stat.value} /> : stat.value}
+            </strong>
             <span className="font-mono">{stat.label}</span>
           </div>
         ))}

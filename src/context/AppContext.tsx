@@ -1,7 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useReducer, useCallback } from 'react';
-import type { Astronaut, AppState, NavSection, CommStatus, ScenarioType } from '@/types';
+import React, { createContext, useContext, useReducer, useCallback, useEffect, useState } from 'react';
+import type { Astronaut, AppState, NavSection, CommStatus, MetricWithBaseline, ScenarioType } from '@/types';
 import { ASTRONAUTS, MAYA_CHEN } from '@/data/astronauts';
 import { MEDICAL_RESOURCES } from '@/data/medicalResources';
 
@@ -177,16 +177,61 @@ function applyScenario(base: Astronaut, scenario: ScenarioType): Astronaut {
   return a;
 }
 
+function seedFromId(id: string) {
+  return id.split('').reduce((seed, character) => seed + character.charCodeAt(0), 0);
+}
+
+function updateMetric(metric: MetricWithBaseline, current: number): MetricWithBaseline {
+  const deviationPct = Math.round(((current - metric.baseline.mean) / metric.baseline.mean) * 100);
+  return {
+    ...metric,
+    current,
+    deviationPct,
+    trend: [...metric.trend.slice(0, -1), current],
+  };
+}
+
+function applySimulatedTelemetry(astronaut: Astronaut, tick: number): Astronaut {
+  const seed = seedFromId(astronaut.id);
+  const primaryWave = Math.sin((tick + seed) * 1.17);
+  const secondaryWave = Math.sin((tick + seed * 0.37) * 1.83);
+  const scoreWave = Math.sin((tick + seed) * 0.71);
+  const restingHR = Math.round(astronaut.physiological.restingHR.current + primaryWave * 2);
+  const hrv = Math.max(1, Math.round(astronaut.physiological.hrv.current + secondaryWave * 3));
+  const heartRate = Math.max(35, Math.round(astronaut.physiological.heartRate.current + primaryWave * 2.5));
+
+  return {
+    ...astronaut,
+    overallHealthScore: Math.max(0, Math.min(100, Math.round(astronaut.overallHealthScore + scoreWave))),
+    physiological: {
+      ...astronaut.physiological,
+      restingHR: updateMetric(astronaut.physiological.restingHR, restingHR),
+      hrv: updateMetric(astronaut.physiological.hrv, hrv),
+      heartRate: updateMetric(astronaut.physiological.heartRate, heartRate),
+    },
+  };
+}
+
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
+  const [telemetryTick, setTelemetryTick] = useState(0);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setTelemetryTick(currentTick => currentTick + 1);
+    }, 1800);
+
+    return () => window.clearInterval(interval);
+  }, []);
+
   const astronauts = React.useMemo(
-    () => ASTRONAUTS.map(a => applyScenario(a, state.scenario)),
-    [state.scenario],
+    () => ASTRONAUTS.map(astronaut => applySimulatedTelemetry(applyScenario(astronaut, state.scenario), telemetryTick)),
+    [state.scenario, telemetryTick],
   );
 
-  const selectedAstronaut = astronauts.find(a => a.id === state.selectedAstronautId) ?? MAYA_CHEN;
+  const selectedAstronaut = astronauts.find(a => a.id === state.selectedAstronautId) ?? astronauts[0] ?? MAYA_CHEN;
 
   const setNav = useCallback((section: NavSection) => {
     dispatch({ type: 'SET_NAV', section });

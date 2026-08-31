@@ -1,0 +1,10 @@
+{
+  "description": "Enables users to create, edit, and preview Markdown documents seamlessly, enhancing productivity for writers and developers alike.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
