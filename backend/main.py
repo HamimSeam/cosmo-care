@@ -52,7 +52,10 @@ PERSIST_DIR = "./kb"
 COLLECTION_NAME = "medical_kb"
 TOP_K = 3
 
-FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
+# Accept a comma-separated list of origins from the env var, falling back to localhost.
+# Example: FRONTEND_ORIGIN=https://cosmo-care.vercel.app,http://localhost:3000
+_raw_origins = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
+FRONTEND_ORIGINS: list[str] = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
 # ---------------------------------------------------------------------------
 # Load trained model artifacts (produced in model.ipynb)
@@ -280,7 +283,7 @@ app = FastAPI(title="Cosmo Care API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_ORIGIN],
+    allow_origins=FRONTEND_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )

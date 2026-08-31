@@ -46,3 +46,7 @@ next-env.d.ts
 *.zip
 ml/docs
 .vscode
+.env
+node_modules/
+.next
+backend/docs

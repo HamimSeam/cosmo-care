@@ -33,19 +33,21 @@ function AppShell() {
 
   return (
     <div className="app-root" data-view={state.activeNav} data-scenario={state.scenario}>
-      <Sidebar />
-      <div className="app-workspace" style={{ background: isMissionOverview ? 'transparent' : undefined }}>
-        <TopBar />
-        <div
-          className={isMissionOverview ? 'mission-overview-shell' : 'main-content'}
-          style={isMissionOverview ? { flex: 1, overflow: 'hidden', position: 'relative' } : undefined}
-        >
-          <div key={`${state.activeNav}-${state.scenario}`} className="view-stage">
-            {renderView()}
+      <TopBar />
+      <div className="app-body">
+        <Sidebar />
+        <div className="app-workspace" style={{ background: isMissionOverview ? 'transparent' : undefined }}>
+          <div
+            className={isMissionOverview ? 'mission-overview-shell' : 'main-content'}
+            style={isMissionOverview ? { flex: 1, overflow: 'hidden', position: 'relative' } : undefined}
+          >
+            <div key={`${state.activeNav}-${state.scenario}`} className="view-stage">
+              {renderView()}
+            </div>
           </div>
         </div>
+        {isMissionOverview && <DemoControls />}
       </div>
-      <DemoControls />
     </div>
   );
 }
