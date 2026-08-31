@@ -1,7 +1,5 @@
 *.pkl
 *.zip
 ml/docs
-ml/kb
 .vscode
 .env
-*.joblib
