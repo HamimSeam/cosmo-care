@@ -181,7 +181,10 @@ function applyScenario(base: Astronaut, scenario: ScenarioType): Astronaut {
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
-  const [astronauts] = React.useState<Astronaut[]>(ASTRONAUTS);
+  const astronauts = React.useMemo(
+    () => ASTRONAUTS.map(a => applyScenario(a, state.scenario)),
+    [state.scenario],
+  );
 
   const selectedAstronaut = astronauts.find(a => a.id === state.selectedAstronautId) ?? MAYA_CHEN;
 

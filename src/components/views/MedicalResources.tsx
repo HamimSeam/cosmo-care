@@ -1,10 +1,10 @@
 'use client';
 
 import { useApp } from '@/context/AppContext';
-import { MEDICAL_RESOURCES, RESOURCE_CATEGORIES } from '@/data/medicalResources';
+import { RESOURCE_CATEGORIES } from '@/data/medicalResources';
 
 export default function MedicalResources() {
-  const { state, dispatch } = useApp();
+  const { state } = useApp();
   const resources = state.medicalResources;
 
   const totalAvailable = resources.filter(r => r.available && r.quantity > 0).length;
@@ -13,9 +13,9 @@ export default function MedicalResources() {
 
   return (
     <div className="content-area">
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Medical Resources</div>
-        <div style={{ fontSize: 12, color: '#64748b' }}>Onboard medical inventory — CosmoCare tracks availability for AI recommendations</div>
+      <div className="view-header">
+        <div className="view-title">Medical Resources</div>
+        <div className="view-subtitle">Onboard medical inventory · resource-aware AI recommendations</div>
       </div>
 
       {/* Summary */}
@@ -49,9 +49,9 @@ export default function MedicalResources() {
                 const barPct = Math.min(100, (resource.quantity / maxBar) * 100);
 
                 return (
-                  <div key={resource.id} style={{
-                    background: 'var(--surface)', border: `1px solid ${resource.quantity === 0 ? 'rgba(248,113,113,0.3)' : 'var(--border)'}`,
-                    borderRadius: 5, padding: '12px 14px',
+                  <div key={resource.id} className="hud-data-panel" style={{
+                    borderColor: resource.quantity === 0 ? 'rgba(248,113,113,0.3)' : undefined,
+                    padding: '12px 14px',
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                       <div style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 500, flex: 1, paddingRight: 8 }}>{resource.name}</div>

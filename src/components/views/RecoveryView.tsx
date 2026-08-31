@@ -1,32 +1,20 @@
 'use client';
 
 import { useApp } from '@/context/AppContext';
-import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine, type TooltipProps } from 'recharts';
+
+import { LineChart, Line, ResponsiveContainer } from 'recharts';
 
 export default function RecoveryView() {
   const { selectedAstronaut: a } = useApp();
-  const { physiological: p, recovery: r, cognitive: cog, symptoms: sym } = a;
-
-  const recoveryColor = r.recoveryScore >= 80 ? '#34d399' : r.recoveryScore >= 65 ? '#fbbf24' : r.recoveryScore >= 45 ? '#fb923c' : '#f87171';
-
-  // Build recovery trend data from available trends
-  const days = ['D-6', 'D-5', 'D-4', 'D-3', 'D-2', 'D-1', 'Today'];
-  const trendData = days.map((d, i) => ({
-    day: d,
-    hr: p.restingHR.trend[i],
-    hrv: p.hrv.trend[i],
-    spo2: p.spo2.trend[i],
-    sleep: r.sleepDuration.trend[i],
-    fatigue: cog.fatigueLevel.trend[i],
-  }));
+  const { physiological: p, recovery: r, cognitive: cog } = a;
 
   const isInRecovery = a.medicalEvents.some(e => ['ACTIVE', 'IMPROVING'].includes(e.currentStatus));
 
   return (
     <div className="content-area">
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Recovery</div>
-        <div style={{ fontSize: 12, color: '#64748b' }}>Recovery tracking vs personal baseline · {a.name}</div>
+      <div className="view-header">
+        <div className="view-title">Recovery</div>
+        <div className="view-subtitle">Recovery tracking vs personal baseline · {a.name}</div>
       </div>
 
       {/* Recovery score overview */}

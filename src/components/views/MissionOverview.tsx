@@ -1,190 +1,287 @@
 'use client';
 
+import dynamic from 'next/dynamic';
+import { Suspense } from 'react';
 import { useApp } from '@/context/AppContext';
-import type { Astronaut } from '@/types';
+import { analyzeHealthRisk } from '@/lib/aiEngine';
+import type { Astronaut, HealthStatus } from '@/types';
 
-function ScoreRing({ score, size = 64, label }: { score: number; size?: number; label?: string }) {
-  const r = (size / 2) - 6;
-  const circ = 2 * Math.PI * r;
-  const pct = Math.max(0, Math.min(100, score)) / 100;
-  const dash = pct * circ;
-  const gap = circ - dash;
-  const color = score >= 80 ? '#34d399' : score >= 65 ? '#fbbf24' : score >= 45 ? '#fb923c' : '#f87171';
+const SpacecraftViewer = dynamic(() => import('@/components/SpacecraftViewer'), {
+  ssr: false,
+  loading: () => (
+    <div className="figma-spacecraft-loading font-mono">
+      <span /> LOADING SPACECRAFT
+    </div>
+  ),
+});
+
+const STATUS_COLOR: Record<HealthStatus, string> = {
+  GREEN: '#22c55e',
+  YELLOW: '#eab308',
+  ORANGE: '#f97316',
+  RED: '#ef4444',
+};
+
+const STATUS_LABEL: Record<HealthStatus, string> = {
+  GREEN: 'NOMINAL',
+  YELLOW: 'MONITOR',
+  ORANGE: 'ELEVATED',
+  RED: 'CRITICAL',
+};
+
+function GlassPanel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return <section className={`figma-glass-panel bracket ${className}`}>{children}</section>;
+}
+
+function MiniTrend({ data, color }: { data: number[]; color: string }) {
+  const width = 248;
+  const height = 44;
+  if (data.length < 2) return null;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const points = data.map((value, index) => {
+    const x = (index / (data.length - 1)) * width;
+    const y = height - 4 - ((value - min) / range) * (height - 8);
+    return `${x},${y}`;
+  }).join(' ');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#1e2a3a" strokeWidth={5} />
-        <circle
-          cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={5}
-          strokeDasharray={`${dash} ${gap}`} strokeLinecap="round"
-          style={{ transition: 'stroke-dasharray 0.5s ease' }}
-        />
-        <text
-          x={size/2} y={size/2 + 5}
-          textAnchor="middle" fill={color}
-          fontSize={size < 60 ? 14 : 18} fontWeight={700}
-          style={{ transform: 'rotate(90deg)', transformOrigin: `${size/2}px ${size/2}px` }}
-        >
-          {score}
-        </text>
-      </svg>
-      {label && <span style={{ fontSize: 9, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</span>}
+    <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-hidden>
+      <line x1="0" y1={height / 2} x2={width} y2={height / 2} stroke="rgba(34,211,238,0.08)" strokeDasharray="3 4" />
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+function CrewPanel({ onOpenProfile }: { onOpenProfile: () => void }) {
+  const { astronauts, state, selectAstronaut } = useApp();
+  const alertCount = astronauts.filter(astronaut => astronaut.healthStatus !== 'GREEN').length;
+
+  return (
+    <GlassPanel className="figma-crew-panel hud-appear">
+      <header className="figma-panel-header">
+        <div className="font-mono">CREW STATUS</div>
+        <div className="figma-crew-summary">
+          <strong>{astronauts.length}</strong>
+          <span className="font-mono">CREW MONITORED</span>
+          {alertCount > 0 && <em className="font-mono">{alertCount} ALERTS</em>}
+        </div>
+      </header>
+
+      <div className="figma-crew-list">
+        {astronauts.map(astronaut => {
+          const selected = astronaut.id === state.selectedAstronautId;
+          const color = STATUS_COLOR[astronaut.healthStatus];
+          return (
+            <button
+              key={astronaut.id}
+              className="figma-crew-row"
+              data-selected={selected}
+              onClick={() => selectAstronaut(astronaut.id)}
+              aria-pressed={selected}
+              style={{ '--crew-color': color } as React.CSSProperties}
+            >
+              <div className="figma-crew-row-main">
+                <span className={`figma-crew-status-dot${astronaut.healthStatus === 'RED' ? ' pulse-fast' : ' pulse'}`} />
+                <span className="figma-crew-copy">
+                  <strong>{astronaut.name}</strong>
+                  <small className="font-mono">{astronaut.role}</small>
+                </span>
+                <span className="figma-crew-score">
+                  <small className="font-mono">{STATUS_LABEL[astronaut.healthStatus]}</small>
+                  <strong className="font-mono">{astronaut.overallHealthScore}</strong>
+                </span>
+              </div>
+              <span className="figma-health-track"><span style={{ width: `${astronaut.overallHealthScore}%` }} /></span>
+            </button>
+          );
+        })}
+      </div>
+
+      <footer className="figma-panel-footer">
+        <span className="pulse" />
+        <span className="font-mono">LIVE TELEMETRY · 5s UPDATE</span>
+        <button className="font-mono" onClick={onOpenProfile}>OPEN PROFILE →</button>
+      </footer>
+    </GlassPanel>
+  );
+}
+
+function MetricComparison({ label, current, baseline, unit, color }: {
+  label: string;
+  current: number;
+  baseline: number;
+  unit: string;
+  color: string;
+}) {
+  const difference = current - baseline;
+  return (
+    <div className="figma-metric-row">
+      <div className="figma-metric-label font-mono">
+        <span>{label}</span>
+        <em style={{ color }}>{difference >= 0 ? '↑' : '↓'} {Math.abs(difference).toFixed(unit === 'HR' ? 1 : 0)}{unit} FROM BASELINE</em>
+      </div>
+      <div className="figma-metric-values">
+        <span><small className="font-mono">BASELINE</small><strong className="font-mono">{baseline}<em>{unit}</em></strong></span>
+        <b>→</b>
+        <span><small className="font-mono">CURRENT</small><strong className="font-mono" style={{ color }}>{current}<em>{unit}</em></strong></span>
+      </div>
     </div>
   );
 }
 
-function StatusBadge({ status }: { status: Astronaut['healthStatus'] }) {
-  const colorMap: Record<string, { bg: string; border: string; text: string }> = {
-    GREEN:  { bg: 'rgba(52,211,153,0.1)',  border: 'rgba(52,211,153,0.3)',  text: '#34d399' },
-    YELLOW: { bg: 'rgba(251,191,36,0.1)',  border: 'rgba(251,191,36,0.3)',  text: '#fbbf24' },
-    ORANGE: { bg: 'rgba(251,146,60,0.1)',  border: 'rgba(251,146,60,0.3)',  text: '#fb923c' },
-    RED:    { bg: 'rgba(248,113,113,0.1)', border: 'rgba(248,113,113,0.3)', text: '#f87171' },
-  };
-  const colors = colorMap[status];
+function SelectedHealthPanel({ astronaut }: { astronaut: Astronaut }) {
+  const color = STATUS_COLOR[astronaut.healthStatus];
+  const { physiological, recovery } = astronaut;
+
   return (
-    <span style={{
-      background: colors.bg, border: `1px solid ${colors.border}`, color: colors.text,
-      borderRadius: 3, padding: '1px 8px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
-    }}>
-      {status}
-    </span>
+    <GlassPanel className="figma-health-panel hud-appear">
+      <header className="figma-panel-header compact">
+        <div>
+          <span className="font-mono">HEALTH TELEMETRY</span>
+          <strong>{astronaut.name}</strong>
+          <small className="font-mono">{astronaut.role} · MISSION DAY {astronaut.missionDay}</small>
+        </div>
+        <div className="figma-selected-score" style={{ color }}>
+          <strong className="font-mono">{astronaut.overallHealthScore}</strong>
+          <small className="font-mono">{STATUS_LABEL[astronaut.healthStatus]}</small>
+        </div>
+      </header>
+      <div className="figma-health-metrics">
+        <MetricComparison
+          label="RESTING HEART RATE"
+          current={physiological.restingHR.current}
+          baseline={physiological.restingHR.baseline.mean}
+          unit="BPM"
+          color={STATUS_COLOR[physiological.restingHR.status]}
+        />
+        <MetricComparison
+          label="HEART RATE VARIABILITY"
+          current={physiological.hrv.current}
+          baseline={physiological.hrv.baseline.mean}
+          unit="ms"
+          color={STATUS_COLOR[physiological.hrv.status]}
+        />
+        <MetricComparison
+          label="SLEEP DURATION"
+          current={recovery.sleepDuration.current}
+          baseline={recovery.sleepDuration.baseline.mean}
+          unit="HR"
+          color={STATUS_COLOR[recovery.sleepDuration.status]}
+        />
+      </div>
+    </GlassPanel>
   );
 }
 
-function AstronautCard({ astronaut, isSelected, onClick }: { astronaut: Astronaut; isSelected: boolean; onClick: () => void }) {
-  const hasAlert = astronaut.alerts.length > 0;
-  const isEmergency = astronaut.healthStatus === 'RED';
+function IntelligencePanel({ astronaut, onOpen }: { astronaut: Astronaut; onOpen: () => void }) {
+  const analysis = analyzeHealthRisk(astronaut);
+  const riskColor = {
+    LOW: '#22c55e', MODERATE: '#eab308', ELEVATED: '#f97316', CRITICAL: '#ef4444',
+  }[analysis.riskLevel];
+  const alert = astronaut.alerts[0];
 
   return (
-    <div
-      onClick={onClick}
-      style={{
-        background: isSelected ? '#0d1f35' : 'var(--surface)',
-        border: `1px solid ${isSelected ? '#3b82f6' : isEmergency ? 'rgba(248,113,113,0.4)' : 'var(--border)'}`,
-        borderRadius: 6, padding: 16, cursor: 'pointer',
-        transition: 'all 0.2s',
-      }}
-    >
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: '50%',
-            background: 'linear-gradient(135deg, #1e3a5f, #0891b2)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 12, fontWeight: 700, color: '#e2e8f0', flexShrink: 0,
-          }}>
-            {astronaut.avatar}
-          </div>
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0' }}>{astronaut.name}</div>
-            <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{astronaut.role}</div>
-          </div>
+    <GlassPanel className="figma-intelligence-panel hud-appear">
+      <header className="figma-panel-header compact inline">
+        <div>
+          <span className="font-mono">COSMOCARE INTELLIGENCE</span>
+          <strong style={{ color: riskColor }}>
+            {alert?.title ?? (analysis.riskLevel === 'LOW' ? 'No significant pattern detected' : `${analysis.riskLevel} health pattern detected`)}
+          </strong>
         </div>
-        <StatusBadge status={astronaut.healthStatus} />
-      </div>
+        <span className="figma-risk-badge font-mono" style={{ color: riskColor, borderColor: `${riskColor}45` }}>
+          {analysis.riskLevel} · {analysis.confidence}%
+        </span>
+      </header>
 
-      {/* Scores row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 10 }}>
-        {[
-          { label: 'Health', value: astronaut.overallHealthScore },
-          { label: 'Recovery', value: astronaut.recovery.recoveryScore },
-          { label: 'Readiness', value: astronaut.missionReadiness.score },
-        ].map(({ label, value }) => (
-          <div key={label} style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: value >= 80 ? '#34d399' : value >= 60 ? '#fbbf24' : value >= 40 ? '#fb923c' : '#f87171' }}>
-              {value}
-            </div>
-            <div style={{ fontSize: 9, color: '#475569', textTransform: 'uppercase' }}>{label}</div>
-          </div>
+      <div className="figma-factor-list">
+        <div className="font-mono">CONTRIBUTING FACTORS</div>
+        {(analysis.factors.length ? analysis.factors : ['All monitored metrics remain within the personal baseline envelope.']).slice(0, 4).map((factor, index) => (
+          <p key={`${factor}-${index}`}><span style={{ color: riskColor }}>▸</span>{factor}</p>
         ))}
       </div>
 
-      {/* Alert */}
-      {hasAlert ? (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          background: isEmergency ? 'rgba(220,38,38,0.1)' : 'rgba(251,146,60,0.1)',
-          border: `1px solid ${isEmergency ? 'rgba(220,38,38,0.3)' : 'rgba(251,146,60,0.3)'}`,
-          borderRadius: 4, padding: '4px 8px',
-        }}>
-          <span style={{ fontSize: 10 }}>{isEmergency ? '⚠' : '◉'}</span>
-          <span style={{ fontSize: 10, color: isEmergency ? '#f87171' : '#fb923c', fontWeight: 500 }}>
-            {astronaut.alerts[0]?.title.slice(0, 45)}...
-          </span>
+      <div className="figma-assessment">
+        <span className="font-mono">COSMOCARE ASSESSMENT</span>
+        <p>{alert?.summary ?? 'No correlated physiological deviations currently require medical intervention.'}</p>
+      </div>
+
+      <button className="figma-open-triage font-mono" onClick={onOpen} style={{ color: riskColor, borderColor: `${riskColor}50` }}>
+        {analysis.riskLevel === 'LOW' ? 'OPEN HEALTH INTELLIGENCE' : 'OPEN ASTROTRIAGE'} →
+      </button>
+    </GlassPanel>
+  );
+}
+
+function TrendsPanel({ astronaut }: { astronaut: Astronaut }) {
+  const trend = astronaut.physiological.restingHR.trend;
+  const color = STATUS_COLOR[astronaut.physiological.restingHR.status];
+  return (
+    <GlassPanel className="figma-trends-panel hud-appear">
+      <header className="figma-panel-header compact inline">
+        <div>
+          <span className="font-mono">7-DAY TREND · RESTING HR</span>
+          <strong className="font-mono" style={{ color }}>{astronaut.physiological.restingHR.current} BPM</strong>
         </div>
-      ) : (
-        <div style={{
-          background: 'rgba(52,211,153,0.05)', border: '1px solid rgba(52,211,153,0.15)',
-          borderRadius: 4, padding: '4px 8px',
-        }}>
-          <span style={{ fontSize: 10, color: '#34d399' }}>No active alerts</span>
-        </div>
-      )}
-    </div>
+        <small className="font-mono">BASELINE {astronaut.physiological.restingHR.baseline.min}–{astronaut.physiological.restingHR.baseline.max}</small>
+      </header>
+      <div className="figma-trend-chart"><MiniTrend data={trend} color={color} /></div>
+    </GlassPanel>
   );
 }
 
 export default function MissionOverview() {
-  const { astronauts, state, selectAstronaut, setNav } = useApp();
-
-  const critical = astronauts.filter(a => a.healthStatus === 'RED');
-  const elevated = astronauts.filter(a => a.healthStatus === 'ORANGE');
-  const monitored = astronauts.filter(a => a.healthStatus === 'YELLOW');
-  const nominal = astronauts.filter(a => a.healthStatus === 'GREEN');
+  const { astronauts, selectedAstronaut, state, selectAstronaut, setNav } = useApp();
+  const nominalCount = astronauts.filter(astronaut => astronaut.healthStatus === 'GREEN').length;
+  const alertCount = astronauts.length - nominalCount;
 
   return (
-    <div className="content-area">
-      {/* Header */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>Mission Overview</div>
-        <div style={{ fontSize: 12, color: '#64748b' }}>
-          AI-powered health intelligence — Mission Day {state.missionDay} · 4 crew members monitored
-        </div>
-      </div>
-
-      {/* Status summary */}
-      <div className="grid-4" style={{ marginBottom: 20 }}>
-        {[
-          { label: 'Nominal', count: nominal.length, color: '#34d399', bg: 'rgba(52,211,153,0.1)', border: 'rgba(52,211,153,0.2)' },
-          { label: 'Monitor', count: monitored.length, color: '#fbbf24', bg: 'rgba(251,191,36,0.1)', border: 'rgba(251,191,36,0.2)' },
-          { label: 'Elevated Risk', count: elevated.length, color: '#fb923c', bg: 'rgba(251,146,60,0.1)', border: 'rgba(251,146,60,0.2)' },
-          { label: 'Critical', count: critical.length, color: '#f87171', bg: 'rgba(248,113,113,0.1)', border: 'rgba(248,113,113,0.2)' },
-        ].map(s => (
-          <div key={s.label} className="card" style={{ background: s.bg, border: `1px solid ${s.border}`, textAlign: 'center', padding: '12px 16px' }}>
-            <div style={{ fontSize: 32, fontWeight: 700, color: s.color }}>{s.count}</div>
-            <div style={{ fontSize: 10, color: s.color, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{s.label}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Crew cards */}
-      <div style={{ fontSize: 11, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Crew Health Status</div>
-      <div className="grid-2">
-        {astronauts.map(a => (
-          <AstronautCard
-            key={a.id}
-            astronaut={a}
-            isSelected={state.selectedAstronautId === a.id}
-            onClick={() => { selectAstronaut(a.id); setNav('crew-health'); }}
+    <div className="figma-overview">
+      <div className="figma-spacecraft-layer">
+        <Suspense fallback={null}>
+          <SpacecraftViewer
+            astronauts={astronauts}
+            selectedId={state.selectedAstronautId}
+            onSelectAstronaut={selectAstronaut}
           />
+        </Suspense>
+      </div>
+
+      <div className="figma-overview-label font-mono">
+        MISSION OVERVIEW · ARTEMIS FORWARD
+        <span />
+      </div>
+
+      <div className="figma-hud-layout">
+        <CrewPanel onOpenProfile={() => setNav('crew-health')} />
+        <div className="figma-hud-space" aria-hidden />
+        <div className="figma-right-stack">
+          <SelectedHealthPanel astronaut={selectedAstronaut} />
+          <IntelligencePanel astronaut={selectedAstronaut} onOpen={() => setNav('health-intelligence')} />
+          <TrendsPanel astronaut={selectedAstronaut} />
+        </div>
+      </div>
+
+      <div className="figma-mission-stats">
+        {[
+          { label: 'MISSION DAY', value: state.missionDay },
+          { label: 'CREW NOMINAL', value: `${nominalCount} / ${astronauts.length}` },
+          { label: 'ACTIVE ALERTS', value: alertCount },
+        ].map(stat => (
+          <div key={stat.label}>
+            <strong className="font-mono">{stat.value}</strong>
+            <span className="font-mono">{stat.label}</span>
+          </div>
         ))}
       </div>
 
-      {/* AI System note */}
-      <div className="card" style={{ marginTop: 20, background: 'rgba(30,45,69,0.5)', border: '1px solid #1e2d45' }}>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-          <span style={{ color: '#3b82f6', fontSize: 16, flexShrink: 0 }}>◆</span>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#60a5fa', marginBottom: 4 }}>COSMOCARE AI — SYSTEM NOTICE</div>
-            <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.6 }}>
-              CosmoCare AI provides health intelligence and decision support for flight medical personnel. All AI-generated assessments represent potential risks based on personalized baseline analysis and require review by a qualified flight surgeon or medical professional.
-              <strong style={{ color: '#94a3b8' }}> CosmoCare AI does not diagnose or prescribe treatment.</strong>
-            </div>
-          </div>
+      {state.commStatus.mode !== 'NOMINAL' && (
+        <div className="figma-local-support font-mono">
+          <span className="pulse" /> LOCAL DECISION SUPPORT ACTIVE
         </div>
-      </div>
+      )}
     </div>
   );
 }

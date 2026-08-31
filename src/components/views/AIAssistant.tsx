@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useApp } from '@/context/AppContext';
+import { queryAIAssistant } from '@/lib/aiEngine';
 import { KNOWLEDGE_BASE } from '@/data/knowledgeBase';
 
 // Requests go through local Next.js API routes (avoids CORS + Render cold-start UX)
@@ -330,14 +331,9 @@ export default function AIAssistant() {
 
   return (
     <div className="content-area">
-      {/* Header */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>
-          AI Medical Assistant
-        </div>
-        <div style={{ fontSize: 12, color: '#64748b' }}>
-          Granite-powered decision support · NASA reference RAG · Live anomaly detection
-        </div>
+      <div className="view-header">
+        <div className="view-title">AstroTriage</div>
+        <div className="view-subtitle">Protocol-grounded onboard decision support · Demonstration knowledge base</div>
       </div>
 
       <div className="grid-main-side">
