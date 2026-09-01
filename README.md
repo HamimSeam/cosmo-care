@@ -89,8 +89,49 @@ CosmoCare doesn't stop once an event is detected.
 
 Health Event -> Intervention -> Recovery Monitoring -> Return Toward Baseline
 
-
 ## 3. AI approach and architecture
+
+We trained an Isolation Forest model on the HealthRing dataset (a sample of ~54 people with healthy vitals). From this data, the model learned what normal patterns of heart rate, respiratory rate, and SpO2 look like, as well as how to distinguish between true anomalies and normal deviations from an individual's baseline.
+
+The output of the model is structured into a JSON payload, which is passed into an IBM Granite LLM that ingests information from official NASA manuals into its knowledge base, forming an RAG pipeline. Astronauts can query and interact with this system to receive medical advice and recommendations.
+
+A high level outline of the full tool chain is shown below:
+
+```
+Synthetic vitals (per-astronaut, regime-tagged)
+        │
+        ▼
+Feature engineering (baseline z-scores, slopes, cross-vital terms)
+        │
+        ▼
+Isolation Forest (trained on normal data) ──► anomaly score
+        │
+        ▼
+SHAP attribution ──► per-feature contributions
+        │
+        ▼
+Factor analysis / PCA ──► mapped to body systems
+        │
+        ▼
+Trend extrapolation ──► projected anomaly score (+1h/+3h/+6h)
+        │
+        │                                   NASA / flight-surgeon docs
+        │                                            │
+        │                                            ▼
+        │                                   retrieved reference chunks
+        │                                            │
+        └──────────────► structured JSON ◄───────────┘
+              (score, systems, top features, symptoms, regime)
+                             │
+                             ▼
+                   watsonx / Granite LLM
+                             │
+                             ▼
+      SUMMARY · CONCERN · SEVERITY · ACTION · SOURCE
+                             │
+                             ▼
+                        Dashboard
+```
 
 ## Technology Stack
 
