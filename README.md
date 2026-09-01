@@ -6,6 +6,9 @@ Predict → Prevent → Respond → Recover
 
 CosmoCare is an AI-powered onboard medical intelligence system designed to help astronauts monitor, identify, and respond to emerging health risks during long-duration deep-space missions, especially when communication with Earth is delayed.
 
+
+[Launch CosmoCare](https://cosmo-care-pi.vercel.app/)
+
 ## 1. The Problem
 Long-duration space missions create unique medical challenges. Astronauts can face:
 - Fatigue/Sleep deprivation
