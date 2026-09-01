@@ -48,7 +48,7 @@ function AppShell() {
             </div>
           </div>
         </div>
-        {isMissionOverview && <DemoControls />}
+        <DemoControls />
       </div>
     </div>
   );

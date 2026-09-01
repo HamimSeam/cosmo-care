@@ -52,9 +52,10 @@ PERSIST_DIR = "./kb"
 COLLECTION_NAME = "medical_kb"
 TOP_K = 3
 
-# Accept a comma-separated list of origins from the env var, falling back to localhost.
+# Accept a comma-separated list of origins from the env var.
+# Falls back to ["*"] so the backend is reachable even before the env var is set.
 # Example: FRONTEND_ORIGIN=https://cosmo-care.vercel.app,http://localhost:3000
-_raw_origins = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
+_raw_origins = os.getenv("FRONTEND_ORIGIN", "*")
 FRONTEND_ORIGINS: list[str] = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 
 # ---------------------------------------------------------------------------
