@@ -12,6 +12,7 @@ import {
 
 const DETECT_URL = '/api/detect';  // proxied through Next.js — no CORS
 const POLL_MS = 4000;              // normal poll interval (ms)
+const DEMO_POLL_MS = 1200;         // faster while a demo sim is running
 const WAKE_POLL_MS = 10000;        // slower retry on errors
 const MAX_POINTS = 60;        // rolling window of displayed data points
 
@@ -53,7 +54,13 @@ function computeSpans(pts: ChartPoint[]): AnomalySpan[] {
   return spans;
 }
 
-function useAnomalyDetection(personId: string, hr: number, spo2: number, respRr: number) {
+function useAnomalyDetection(
+  personId: string,
+  hr: number,
+  spo2: number,
+  respRr: number,
+  simRunning: boolean,
+) {
   const [points, setPoints] = useState<ChartPoint[]>([]);
   const [spans, setSpans] = useState<AnomalySpan[]>([]);
   const [status, setStatus] = useState<'idle' | 'polling' | 'error' | 'waking'>('idle');
@@ -61,6 +68,9 @@ function useAnomalyDetection(personId: string, hr: number, spo2: number, respRr:
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const personIdRef = useRef(personId);
   const consecutiveErrorsRef = useRef(0);
+
+  const pollIntervalRef = useRef(POLL_MS);
+  pollIntervalRef.current = simRunning ? DEMO_POLL_MS : POLL_MS;
 
   // Keep latest vitals accessible inside the interval without restarting it
   const vitalsRef = useRef({ hr, spo2, respRr });
@@ -142,7 +152,7 @@ function useAnomalyDetection(personId: string, hr: number, spo2: number, respRr:
     const schedule = () => {
       if (!active) return;
       // Adapt interval: slower while waking (cold start), fast once live
-      const delay = consecutiveErrorsRef.current > 0 ? WAKE_POLL_MS : POLL_MS;
+      const delay = consecutiveErrorsRef.current > 0 ? WAKE_POLL_MS : pollIntervalRef.current;
       timerRef.current = setTimeout(async () => {
         if (!active) return;
         await poll();
@@ -162,7 +172,7 @@ function useAnomalyDetection(personId: string, hr: number, spo2: number, respRr:
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [personId]);
+  }, [personId, simRunning]);
 
   return { points, spans, status, errorDetail };
 }
@@ -198,10 +208,10 @@ function AnomalyTooltip({ active, payload, label }: {
 
 // ─── The chart itself ─────────────────────────────────────────────────────────
 
-function AnomalyChart({ personId, hr, spo2, respRr }: {
-  personId: string; hr: number; spo2: number; respRr: number;
+function AnomalyChart({ personId, hr, spo2, respRr, simRunning }: {
+  personId: string; hr: number; spo2: number; respRr: number; simRunning: boolean;
 }) {
-  const { points, spans, status, errorDetail } = useAnomalyDetection(personId, hr, spo2, respRr);
+  const { points, spans, status, errorDetail } = useAnomalyDetection(personId, hr, spo2, respRr, simRunning);
 
   const anomalyCount = points.filter(p => p.isAnomaly).length;
   const latestScore = points[points.length - 1]?.score;
@@ -369,7 +379,7 @@ function AnomalyChart({ personId, hr, spo2, respRr }: {
 }
 
 export default function HealthIntelligence() {
-  const { selectedAstronaut: a } = useApp();
+  const { selectedAstronaut: a, sim } = useApp();
   const { riskLevel, confidence, factors } = analyzeHealthRisk(a);
 
   const riskColors = {
@@ -451,6 +461,7 @@ export default function HealthIntelligence() {
         hr={a.physiological.heartRate.current}
         spo2={a.physiological.spo2.current}
         respRr={a.physiological.respiratoryRate.current}
+        simRunning={sim.running}
       />
 
       {/* Trend charts */}

@@ -1,7 +1,7 @@
 // ─── Demo Simulation Data ─────────────────────────────────────────────────────
 //
 // Each scenario contains a time-series of vital snapshots (one per tick) plus
-// alert threshold rules.  The tick interval is defined in AppContext (3 s).
+// alert threshold rules.  Playback speed is controlled by DEMO_TICK_MS below.
 // Values are intentionally hardcoded so demos are deterministic and repeatable.
 //
 // The Isolation Forest was trained on real wearable data with these observed ranges:
@@ -92,9 +92,10 @@ function buildFrames(series: Record<SimVitalKey, number[]>): SimFrame[] {
   }));
 }
 
-// Total ticks. At 3–4 s per poll the backend accumulates ~30 s of rolling context
-// by tick 8–10, so anomaly onset from tick 10 onwards will have meaningful slopes.
-const N = 40;
+// Total ticks. At ~1 s per tick the backend accumulates rolling context quickly;
+// anomaly onset from tick 10 onwards still has meaningful slopes.
+export const DEMO_TICK_MS = 1000;
+const N = 30;
 
 // ─── Scenario 1: NORMAL ───────────────────────────────────────────────────────
 // Maya Chen — All three model vitals (hr, spo2, resp_rr) stable and typical.
@@ -131,8 +132,8 @@ const normalSeries: Record<SimVitalKey, number[]> = {
 // The combination of rising roll_slope + deviation-from-roll + sustained plateau
 // should produce a clearly negative anomaly_score.
 
-const ILL_ONSET = 10;
-const ILL_RAMP  = 15;
+const ILL_ONSET = 7;
+const ILL_RAMP  = 11;
 
 function illnessVital(
   normal: number, peak: number,
@@ -198,20 +199,20 @@ function emergencyVital(
 
 const emergencySeries: Record<SimVitalKey, number[]> = {
   // Model vitals — hard simultaneous shift
-  heartRate:          emergencyVital(82,  115, 128, 8, 16, N),   // +46 above baseline
-  respiratoryRate:    emergencyVital(16,  25,  30,  8, 16, N),   // +14 above baseline
-  spo2:               emergencyVital(97,  90,  84,  8, 16, N),   // −13 %
+  heartRate:          emergencyVital(82,  115, 128, 6, 12, N),   // +46 above baseline
+  respiratoryRate:    emergencyVital(16,  25,  30,  6, 12, N),   // +14 above baseline
+  spo2:               emergencyVital(97,  90,  84,  6, 12, N),   // −13 %
 
   // Supporting vitals
-  restingHR:          emergencyVital(70,  100, 115, 8, 16, N),
-  temperature:        emergencyVital(36.7, 37.5, 38.1, 8, 16, N),
-  systolicBP:         emergencyVital(120, 102,  92,  8, 16, N),  // BP dropping
-  diastolicBP:        emergencyVital(78,  65,   58,  8, 16, N),
-  hrv:                emergencyVital(65,  30,   16,  8, 16, N),
-  hydration:          emergencyVital(92,  78,   66,  8, 16, N),
-  overallHealthScore: emergencyVital(88,  55,   24,  8, 16, N),
-  recoveryScore:      emergencyVital(84,  50,   16,  8, 16, N),
-  cognitiveReadiness: emergencyVital(86,  52,   18,  8, 16, N),
+  restingHR:          emergencyVital(70,  100, 115, 6, 12, N),
+  temperature:        emergencyVital(36.7, 37.5, 38.1, 6, 12, N),
+  systolicBP:         emergencyVital(120, 102,  92,  6, 12, N),  // BP dropping
+  diastolicBP:        emergencyVital(78,  65,   58,  6, 12, N),
+  hrv:                emergencyVital(65,  30,   16,  6, 12, N),
+  hydration:          emergencyVital(92,  78,   66,  6, 12, N),
+  overallHealthScore: emergencyVital(88,  55,   24,  6, 12, N),
+  recoveryScore:      emergencyVital(84,  50,   16,  6, 12, N),
+  cognitiveReadiness: emergencyVital(86,  52,   18,  6, 12, N),
 };
 
 // ─── Alert Rules ──────────────────────────────────────────────────────────────
@@ -272,7 +273,7 @@ const emergencyAlerts: SimAlertRule[] = [
     direction: 'above',
     threshold: 100,
     severity: 'MODERATE',
-    minTick: 10,
+    minTick: 8,
     title: 'Tachycardia — Rapid HR Elevation Post-EVA',
     summary: 'Heart rate acutely elevated following EVA. Rate of change suggests haemodynamic stress rather than exertion alone.',
     recommendation: 'Initiate oral rehydration. Complete rest. Continuous monitoring.',
@@ -283,7 +284,7 @@ const emergencyAlerts: SimAlertRule[] = [
     direction: 'below',
     threshold: 93,
     severity: 'ELEVATED',
-    minTick: 12,
+    minTick: 9,
     title: 'SpO₂ Critically Low',
     summary: 'Oxygen saturation falling rapidly. Combined with tachycardia and tachypnoea — haemodynamic compromise likely.',
     recommendation: 'Supplemental oxygen immediately. Alert flight surgeon. Prepare IV access.',
@@ -294,7 +295,7 @@ const emergencyAlerts: SimAlertRule[] = [
     direction: 'above',
     threshold: 26,
     severity: 'ELEVATED',
-    minTick: 14,
+    minTick: 11,
     title: 'Severe Tachypnoea',
     summary: 'Respiratory rate critically elevated. Combined with hypoxia and tachycardia — medical emergency in progress.',
     recommendation: 'IMMEDIATE medical intervention. Emergency protocol active. Contact flight surgeon.',
@@ -305,7 +306,7 @@ const emergencyAlerts: SimAlertRule[] = [
     direction: 'below',
     threshold: 88,
     severity: 'CRITICAL',
-    minTick: 18,
+    minTick: 14,
     title: 'CRITICAL: Severe Hypoxia — Medical Emergency',
     summary: 'SpO₂ at life-threatening level. Concurrent tachycardia (HR > 120) and respiratory distress confirm haemodynamic emergency.',
     recommendation: 'IMMEDIATE: Supplemental oxygen, IV fluids, continuous monitoring. Emergency medical protocol. Contact flight surgeon NOW.',
@@ -321,7 +322,7 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
     astronautId: 'maya-chen',
     color: '#22c55e',
     description: 'Maya · Nominal operations',
-    tickMs: 3000,
+    tickMs: DEMO_TICK_MS,
     frames: buildFrames(normalSeries),
     alertRules: [],
   },
@@ -331,7 +332,7 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
     astronautId: 'sam-patel',
     color: '#f97316',
     description: 'Sam · Developing illness',
-    tickMs: 3000,
+    tickMs: DEMO_TICK_MS,
     frames: buildFrames(illnessSeries),
     alertRules: illnessAlerts,
   },
@@ -341,7 +342,7 @@ export const DEMO_SCENARIOS: DemoScenario[] = [
     astronautId: 'jordan-lee',
     color: '#ef4444',
     description: 'Jordan · Medical emergency',
-    tickMs: 2500,
+    tickMs: DEMO_TICK_MS,
     frames: buildFrames(emergencySeries),
     alertRules: emergencyAlerts,
   },
