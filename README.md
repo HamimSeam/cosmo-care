@@ -1,36 +1,169 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CosmoCare
 
-## Getting Started
+AI-Powered Medical Intelligence for Deep-Space Missions
 
-First, run the development server:
+Predict → Prevent → Respond → Recover
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+CosmoCare is an AI-powered onboard medical intelligence system designed to help astronauts monitor, identify, and respond to emerging health risks during long-duration deep-space missions, especially when communication with Earth is delayed.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 1. The Problem
+Long-duration space missions create unique medical challenges. Astronauts can face:
+- Fatigue/Sleep deprivation
+- Stress
+- Illness
+- Changes in Cardiovascular Health
+- Cognitive and physical changes
+- Medical emergencies
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+On Earth, medical professionals can provide immediate support but in deep-space missions, communication delays make it hard in cases of emergencies.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+How can astronauts receive intelligent, personalized medical decision support when immediate communication with Earth isn't available?
 
-## Learn More
+## 2. Our Solution
+Our answer: CosmoCare. CosmoCare provides an onboard AI medical intelligence layer that continuously analyzes astronaut health data and identifies meaningful deviations from each astronaut's personal baseline.
+The questions CosmoCare attempts to answer are: "What is changing, why does it matter, and what should we do?"
 
-To learn more about Next.js, take a look at the following resources:
+How CosmoCare Works:
+### Monitor
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+CosmoCare continuously monitors simulated physiological data including:
+- Heart rate
+- Resting heart rate
+- HRV
+- SpO₂
+- Sleep
+- Recovery
+- Hydration
+- Temperature
+- Symptoms
+- Readiness
+- Environmental factors
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Personalize
 
-## Deploy on Vercel
+Instead of relying solely on generic medical thresholds, CosmoCare establishes a personal baseline for each astronaut.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Detect Patterns
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+CosmoCare looks for combinations of changes rather than treating each metric independently.
+
+### Explain
+
+Instead of simply displaying Elevated Risk, CosmoCare explains the reasoning behind the assessment.
+
+Example:
+
+**Emerging Fatigue Pattern**
+
+Contributing factors:
+- Sleep quality
+- HRV
+- Resting heart rate
+- Recovery score
+
+CosmoCare assessment: Multiple deviations from the astronaut's personal baseline indicate increasing physiological stress.
+
+### Recommend
+
+🟡 Monitor
+- Increase monitoring
+- Encourage rest
+- Hydration
+- Recheck metrics
+
+🟠 Prevent
+- Reduce workload
+- Perform targeted health assessment
+- Rest/hydration protocol
+- Notify medical personnel
+
+🔴 Respond
+- Initiate AstroTriage
+- Immediate crew action
+- Begin medical protocol
+- Escalate to flight surgeon
+
+### Recover
+
+CosmoCare doesn't stop once an event is detected.
+
+Health Event -> Intervention -> Recovery Monitoring -> Return Toward Baseline
+
+
+## 3. AI approach and architecture
+
+## Technology Stack
+
+### Frontend
+- React
+- TypeScript
+- Vite / Next.js
+- CSS / Tailwind CSS
+
+### 3D
+- Three.js
+- React Three Fiber
+- GLTF/FBX spacecraft models
+
+Data Visualization
+- MatPlotLib
+
+AI
+- IBM Bob
+- IBM Granite
+- Cursor
+
+Backend
+- [INSERT BACKEND]
+- [INSERT DATABASE]
+
+<img width="544" height="656" alt="aerohealth_ai_flowchart" src="https://github.com/user-attachments/assets/96ef2c28-a0b1-44aa-afed-0b5887710a28" />
+
+## 4. Selected challenge theme
+August Challenge Theme - Advance Space Exploration with AI
+
+## 5. How IBM Bob was used
+IBM Bob was used as an AI development assistant throughout the creation of CosmoCare.
+
+Rather than using Bob only for isolated code snippets, it assisted with the overall application development process.
+
+### Codebase Understanding
+
+Bob was used to analyze:
+- Application architecture
+- Frontend components
+- Routing
+- Data structures
+- 3D spacecraft implementation
+- Crew interactions
+- Health analytics
+
+### UI Development
+Bob assisted with:
+- Holographic glass panels
+- HUD components
+- Crew status indicators
+- Health analytics interfaces
+- Alerts
+- Navigation
+- Responsive layouts
+- Animation and transitions
+
+### Feature Development
+Bob assisted with:
+- Crew health pages
+- Health intelligence
+- Risk states
+- Recommendations
+- AstroTriage
+- Recovery tracking
+- Earth communication delay simulation
+
+### Debugging & Iteration
+Bob was used to:
+- Identify bugs
+- Modify components
+- Refactor code
+- Implement changes
+- Test functionality
+- Iterate on the UI
