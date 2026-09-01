@@ -1,9 +1,20 @@
 'use client';
 
-import React, { createContext, useContext, useReducer, useCallback, useEffect, useState } from 'react';
-import type { Astronaut, AppState, NavSection, CommStatus, MetricWithBaseline, ScenarioType } from '@/types';
+import React, { createContext, useContext, useReducer, useCallback, useEffect, useRef, useState } from 'react';
+import type { Astronaut, AppState, NavSection, CommStatus, MetricWithBaseline, ScenarioType, AIAlert } from '@/types';
 import { ASTRONAUTS, MAYA_CHEN } from '@/data/astronauts';
 import { MEDICAL_RESOURCES } from '@/data/medicalResources';
+import { getScenario, type DemoScenario } from '@/data/simulations';
+
+// ─── Simulation State ─────────────────────────────────────────────────────────
+
+export interface SimState {
+  running: boolean;
+  scenarioId: DemoScenario['id'] | null;
+  tick: number;
+  /** Alert IDs that have already been fired (prevents re-firing) */
+  firedAlertIds: Set<string>;
+}
 
 // ─── Initial State ────────────────────────────────────────────────────────────
 
@@ -22,6 +33,13 @@ const initialState: AppState = {
   missionDay: 147,
   emergencyMode: false,
   medicalResources: MEDICAL_RESOURCES,
+};
+
+const initialSim: SimState = {
+  running: false,
+  scenarioId: null,
+  tick: 0,
+  firedAlertIds: new Set(),
 };
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
@@ -76,22 +94,25 @@ interface AppContextValue {
   simulateCommDelay: (minutes: number) => void;
   resumeComm: () => void;
   setEmergencyMode: (active: boolean) => void;
+  // Simulation
+  sim: SimState;
+  startSim: (scenarioId: DemoScenario['id']) => void;
+  stopSim: () => void;
+  /** Active sim alerts derived from threshold rules */
+  simAlerts: AIAlert[];
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
 
 // ─── Scenario Modifier ────────────────────────────────────────────────────────
-// Returns a modified copy of astronaut data for a given scenario
 
 function applyScenario(base: Astronaut, scenario: ScenarioType): Astronaut {
   if (scenario === 'NORMAL' || base.scenario === scenario) return base;
 
-  // Deep clone via JSON (acceptable for demo data)
   const a: Astronaut = JSON.parse(JSON.stringify(base));
   a.scenario = scenario;
 
   if (scenario === 'FATIGUE_BUILDUP') {
-    // Gradual fatigue progression
     a.physiological.restingHR.current = Math.round(a.physiological.restingHR.baseline.mean * 1.17);
     a.physiological.restingHR.deviationPct = 17;
     a.physiological.restingHR.trend = [
@@ -103,15 +124,12 @@ function applyScenario(base: Astronaut, scenario: ScenarioType): Astronaut {
       a.physiological.restingHR.baseline.mean + 10,
       a.physiological.restingHR.current,
     ];
-
     a.physiological.hrv.current = Math.round(a.physiological.hrv.baseline.mean * 0.78);
     a.physiological.hrv.deviationPct = -22;
     a.physiological.hrv.trend = a.physiological.hrv.trend.map((v, i) => Math.round(v * (1 - i * 0.03)));
-
     a.recovery.sleepDuration.current = a.recovery.sleepDuration.baseline.mean * 0.77;
     a.recovery.sleepDuration.deviationPct = -23;
     a.recovery.sleepDuration.trend = a.recovery.sleepDuration.trend.map((v, i) => parseFloat((v * (1 - i * 0.04)).toFixed(1)));
-
     a.symptoms.fatigue = 6;
     a.cognitive.reactionTime.current = Math.round(a.cognitive.reactionTime.baseline.mean * 1.11);
     a.cognitive.reactionTime.deviationPct = 11;
@@ -151,7 +169,6 @@ function applyScenario(base: Astronaut, scenario: ScenarioType): Astronaut {
   }
 
   if (scenario === 'RECOVERY') {
-    // Recovery from a previous event — gradual improvement
     a.physiological.restingHR.current = Math.round(a.physiological.restingHR.baseline.mean * 1.08);
     a.physiological.restingHR.deviationPct = 8;
     a.physiological.hrv.current = Math.round(a.physiological.hrv.baseline.mean * 0.88);
@@ -183,11 +200,19 @@ function seedFromId(id: string) {
 
 function updateMetric(metric: MetricWithBaseline, current: number): MetricWithBaseline {
   const deviationPct = Math.round(((current - metric.baseline.mean) / metric.baseline.mean) * 100);
+  const statusFn = (pct: number) => {
+    const abs = Math.abs(pct);
+    if (abs <= 10) return 'GREEN' as const;
+    if (abs <= 20) return 'YELLOW' as const;
+    if (abs <= 30) return 'ORANGE' as const;
+    return 'RED' as const;
+  };
   return {
     ...metric,
     current,
     deviationPct,
-    trend: [...metric.trend.slice(0, -1), current],
+    status: statusFn(deviationPct),
+    trend: [...metric.trend.slice(1), current],
   };
 }
 
@@ -212,24 +237,207 @@ function applySimulatedTelemetry(astronaut: Astronaut, tick: number): Astronaut 
   };
 }
 
+// ─── Apply a simulation frame on top of the base astronaut data ───────────────
+
+function applySimFrame(
+  astronaut: Astronaut,
+  scenario: DemoScenario,
+  tick: number,
+): Astronaut {
+  const frameIdx = Math.min(tick, scenario.frames.length - 1);
+  const frame = scenario.frames[frameIdx];
+  if (!frame) return astronaut;
+
+  const v = frame.vitals;
+
+  // Helper to patch a metric by key
+  const patch = (metric: MetricWithBaseline, value: number): MetricWithBaseline =>
+    updateMetric(metric, value);
+
+  const physio = {
+    ...astronaut.physiological,
+    heartRate:       patch(astronaut.physiological.heartRate,       v.heartRate),
+    restingHR:       patch(astronaut.physiological.restingHR,       v.restingHR),
+    spo2:            patch(astronaut.physiological.spo2,            v.spo2),
+    temperature:     patch(astronaut.physiological.temperature,     v.temperature),
+    systolicBP:      patch(astronaut.physiological.systolicBP,      v.systolicBP),
+    diastolicBP:     patch(astronaut.physiological.diastolicBP,     v.diastolicBP),
+    respiratoryRate: patch(astronaut.physiological.respiratoryRate, v.respiratoryRate),
+    hrv:             patch(astronaut.physiological.hrv,             v.hrv),
+    hydration:       patch(astronaut.physiological.hydration,       v.hydration),
+  };
+
+  // Derive health status from overallHealthScore
+  const score = Math.round(v.overallHealthScore);
+  const healthStatus =
+    score >= 80 ? 'GREEN' : score >= 65 ? 'YELLOW' : score >= 45 ? 'ORANGE' : 'RED';
+
+  // Recovery status
+  const recScore = Math.round(v.recoveryScore);
+  const recoveryStatus =
+    recScore >= 80 ? 'PEAK' : recScore >= 65 ? 'GOOD' : recScore >= 45 ? 'REDUCED' : recScore >= 30 ? 'LOW' : 'POOR';
+
+  return {
+    ...astronaut,
+    physiological: physio,
+    overallHealthScore: score,
+    healthStatus,
+    cognitive: {
+      ...astronaut.cognitive,
+      cognitiveReadiness: Math.round(v.cognitiveReadiness),
+    },
+    recovery: {
+      ...astronaut.recovery,
+      recoveryScore: recScore,
+      recoveryStatus,
+    },
+  };
+}
+
+// ─── Derive active alerts from threshold rules ────────────────────────────────
+
+function deriveSimAlerts(
+  scenario: DemoScenario,
+  tick: number,
+  firedIds: Set<string>,
+): { alerts: AIAlert[]; newFired: Set<string> } {
+  // Get the current vital values for this tick
+  const frameIdx = Math.min(tick, scenario.frames.length - 1);
+  const frame = scenario.frames[frameIdx];
+  if (!frame) return { alerts: [], newFired: firedIds };
+
+  const newFired = new Set(firedIds);
+  const alerts: AIAlert[] = [];
+
+  for (const rule of scenario.alertRules) {
+    if (rule.minTick !== undefined && tick < rule.minTick) continue;
+    const value = frame.vitals[rule.vital];
+    const triggered =
+      rule.direction === 'above' ? value >= rule.threshold : value <= rule.threshold;
+    if (triggered) {
+      newFired.add(rule.id);
+      alerts.push({
+        id: rule.id,
+        riskLevel: rule.severity === 'MODERATE' ? 'MODERATE'
+          : rule.severity === 'ELEVATED' ? 'ELEVATED' : 'CRITICAL',
+        title: rule.title,
+        summary: rule.summary,
+        confidence: rule.severity === 'CRITICAL' ? 96 : rule.severity === 'ELEVATED' ? 89 : 78,
+        contributingFactors: [],
+        recommendation: rule.recommendation,
+        timestamp: new Date().toISOString(),
+        acknowledged: false,
+      });
+    }
+  }
+
+  return { alerts, newFired };
+}
+
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const [telemetryTick, setTelemetryTick] = useState(0);
+  const [sim, setSim] = useState<SimState>(initialSim);
+  const [simAlerts, setSimAlerts] = useState<AIAlert[]>([]);
 
+  // Background telemetry wiggle (when no sim is running)
   useEffect(() => {
+    if (sim.running) return; // sim takes over when active
     const interval = window.setInterval(() => {
-      setTelemetryTick(currentTick => currentTick + 1);
+      setTelemetryTick(t => t + 1);
     }, 1800);
-
     return () => window.clearInterval(interval);
+  }, [sim.running]);
+
+  // Simulation tick engine
+  const simIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopSim = useCallback(() => {
+    if (simIntervalRef.current !== null) {
+      clearInterval(simIntervalRef.current);
+      simIntervalRef.current = null;
+    }
+    setSim(initialSim);
+    setSimAlerts([]);
+    // revert app scenario state
+    dispatch({ type: 'SET_SCENARIO', scenario: 'NORMAL' });
+    dispatch({ type: 'SET_EMERGENCY_MODE', active: false });
   }, []);
 
-  const astronauts = React.useMemo(
-    () => ASTRONAUTS.map(astronaut => applySimulatedTelemetry(applyScenario(astronaut, state.scenario), telemetryTick)),
-    [state.scenario, telemetryTick],
-  );
+  const startSim = useCallback((scenarioId: DemoScenario['id']) => {
+    // Stop any running sim first
+    if (simIntervalRef.current !== null) {
+      clearInterval(simIntervalRef.current);
+      simIntervalRef.current = null;
+    }
+
+    const scenario = getScenario(scenarioId);
+
+    setSim({ running: true, scenarioId, tick: 0, firedAlertIds: new Set() });
+    setSimAlerts([]);
+
+    // Select the appropriate astronaut and set app scenario
+    dispatch({ type: 'SELECT_ASTRONAUT', id: scenario.astronautId });
+    dispatch({ type: 'SET_SCENARIO', scenario: scenarioId as ScenarioType });
+    if (scenarioId === 'MEDICAL_EMERGENCY') {
+      dispatch({ type: 'SET_EMERGENCY_MODE', active: true });
+    } else {
+      dispatch({ type: 'SET_EMERGENCY_MODE', active: false });
+    }
+
+    let currentTick = 0;
+    const totalFrames = scenario.frames.length;
+
+    simIntervalRef.current = setInterval(() => {
+      currentTick += 1;
+
+      setSim(prev => {
+        const { alerts, newFired } = deriveSimAlerts(scenario, currentTick, prev.firedAlertIds);
+        setSimAlerts(alerts);
+        return { ...prev, tick: currentTick, firedAlertIds: newFired };
+      });
+
+      // Stop when we reach the last frame
+      if (currentTick >= totalFrames - 1) {
+        if (simIntervalRef.current !== null) {
+          clearInterval(simIntervalRef.current);
+          simIntervalRef.current = null;
+        }
+        setSim(prev => ({ ...prev, running: false }));
+      }
+    }, scenario.tickMs);
+  }, []);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      if (simIntervalRef.current !== null) {
+        clearInterval(simIntervalRef.current);
+      }
+    };
+  }, []);
+
+  const astronauts = React.useMemo(() => {
+    const base = ASTRONAUTS.map(astronaut =>
+      applySimulatedTelemetry(applyScenario(astronaut, state.scenario), telemetryTick)
+    );
+
+    // Apply sim frame while running OR after completion (tick > 0 means a sim ran/is running)
+    if (sim.scenarioId === null || sim.tick === 0) return base;
+
+    const scenario = getScenario(sim.scenarioId);
+    return base.map(astronaut => {
+      if (astronaut.id !== scenario.astronautId) return astronaut;
+      // Apply sim frame vitals and inject sim alerts
+      const withFrame = applySimFrame(astronaut, scenario, sim.tick);
+      return {
+        ...withFrame,
+        alerts: simAlerts,
+      };
+    });
+  }, [state.scenario, telemetryTick, sim.running, sim.scenarioId, sim.tick, simAlerts]);
 
   const selectedAstronaut = astronauts.find(a => a.id === state.selectedAstronautId) ?? astronauts[0] ?? MAYA_CHEN;
 
@@ -291,6 +499,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       simulateCommDelay,
       resumeComm,
       setEmergencyMode,
+      sim,
+      startSim,
+      stopSim,
+      simAlerts,
     }}>
       {children}
     </AppContext.Provider>
