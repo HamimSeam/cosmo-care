@@ -153,10 +153,13 @@ AI
 - IBM Bob
 - IBM Granite
 - Cursor
+- watsonx
+- Jupyter
 
 Backend
-- [INSERT BACKEND]
-- [INSERT DATABASE]
+- IBM Cloud
+- FastAPI
+- Render
 
 <img width="544" height="656" alt="aerohealth_ai_flowchart" src="https://github.com/user-attachments/assets/96ef2c28-a0b1-44aa-afed-0b5887710a28" />
 
